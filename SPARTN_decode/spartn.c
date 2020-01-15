@@ -216,12 +216,12 @@ int decode_OCB_message(spartn_t* spartn) {
 	return 1;
 }
 
-void decode_ionosphere_satellite_block(spartn_t* spartn, int *pos, uint32_t SF040_Tropo, uint32_t SF054_Ionosphere_equation_type) {
+void decode_ionosphere_satellite_block(spartn_t* spartn, int *pos, uint32_t SF040_Iono, uint32_t SF054_Ionosphere_equation_type, uint32_t SF039_Number_grid_points_present) {
 	int i, offset = *pos;
 	int tab = 4;
 	uint8_t* payload = spartn->buff + spartn->Payload_offset;
 	//Table 6.17 Ionosphere satellite block
-	if (SF040_Tropo == 1 || SF040_Tropo == 2) {
+	if (SF040_Iono == 1 || SF040_Iono == 2) {
 		uint32_t SF055_Ionosphere_quality = getbitu(payload, offset, 4); offset += 4; log(LOG_DEBUG, tab, "SF055_Ionosphere_quality = %d", SF055_Ionosphere_quality);
 		uint32_t SF056_Ionosphere_satellite_polynomial_block = getbitu(payload, offset, 1); offset += 1; log(LOG_DEBUG, tab, "SF056_Ionosphere_satellite_polynomial_block = %d", SF056_Ionosphere_satellite_polynomial_block);
 		if (SF056_Ionosphere_satellite_polynomial_block) {
@@ -247,21 +247,44 @@ void decode_ionosphere_satellite_block(spartn_t* spartn, int *pos, uint32_t SF04
 			}
 		}
 	}
-	uint32_t SF063_Ionosphere_residual_field_size = getbitu(payload, offset, 2); offset += 2; log(LOG_DEBUG, tab, "SF063_Ionosphere_residual_field_size = %d", SF063_Ionosphere_residual_field_size);
-	switch (SF063_Ionosphere_residual_field_size) {
-	case 0:
-	{uint32_t SF064 = getbitu(payload, offset, 4); offset += 4; log(LOG_DEBUG, tab, "SF064 = %f", SF064*0.04- 0.28); }
-	break;
-	case 1:
-	{uint32_t SF065 = getbitu(payload, offset, 7); offset += 7; log(LOG_DEBUG, tab, "SF065 = %f", SF065*0.04 - 2.52); }
-	break;
-	case 2:
-	{uint32_t SF066 = getbitu(payload, offset, 10); offset += 10; log(LOG_DEBUG, tab, "SF066 = %f", SF066*0.04 - 20.44); }
-	break;
-	case 3:
-	{uint32_t SF067 = getbitu(payload, offset, 14); offset += 14; log(LOG_DEBUG, tab, "SF067 = %f", SF067*0.04 - 327.64); }
-	break;
+	if (SF040_Iono == 2) {
+		uint32_t SF063_Ionosphere_residual_field_size = getbitu(payload, offset, 2); offset += 2; log(LOG_DEBUG, tab, "SF063_Ionosphere_residual_field_size = %d", SF063_Ionosphere_residual_field_size);
+		switch (SF063_Ionosphere_residual_field_size) {
+		case 0:
+		{
+			uint32_t SF064 = 0;
+			for (i = 0; i < SF039_Number_grid_points_present; i++) {
+				SF064 = getbitu(payload, offset, 4); offset += 4; log(LOG_DEBUG, tab, "SF064 = %f", SF064*0.04 - 0.28);
+			}
+		}
+		break;
+		case 1:
+		{
+			uint32_t SF065 = 0;
+			for (i = 0; i < SF039_Number_grid_points_present; i++) {
+				SF065 = getbitu(payload, offset, 7); offset += 7; log(LOG_DEBUG, tab, "SF065 = %f", SF065*0.04 - 2.52);
+			}
+		}
+		break;
+		case 2:
+		{
+			uint32_t SF066 = 0;
+			for (i = 0; i < SF039_Number_grid_points_present; i++) {
+				SF066 = getbitu(payload, offset, 10); offset += 10; log(LOG_DEBUG, tab, "SF066 = %f", SF066*0.04 - 20.44);
+			}
+		}
+		break;
+		case 3:
+		{
+			uint32_t SF067 = 0;
+			for (i = 0; i < SF039_Number_grid_points_present; i++) {
+				SF067 = getbitu(payload, offset, 14); offset += 14; log(LOG_DEBUG, tab, "SF067 = %f", SF067*0.04 - 327.64);
+			}
+		}
+		break;
+		}
 	}
+
 	*pos = offset;
 }
 void decode_Atmosphere_block(spartn_t* spartn , int *pos) {
@@ -278,7 +301,7 @@ void decode_Atmosphere_block(spartn_t* spartn , int *pos) {
 	if (SF040_Tropo == 1 || SF040_Tropo == 2) {
 		uint32_t SF041_Troposphere_equation_type = getbitu(payload, offset, 3);  offset += 3; log(LOG_DEBUG, tab, "SF041_Troposphere_equation_type = %d", SF041_Troposphere_equation_type);
 		uint32_t SF042_Troposphere_quality = getbitu(payload, offset, 3);  offset += 3; log(LOG_DEBUG, tab, "SF042_Troposphere_quality = %d", SF042_Troposphere_quality);
-		uint32_t SF043_Area_average_vertical_hydrostatic_delay = getbitu(payload, offset, 8);  offset += 8; log(LOG_DEBUG, tab, "SF043_Area_average_vertical_hydrostatic_delay = %f", SF043_Area_average_vertical_hydrostatic_delay*0.04 - 0.508);
+		uint32_t SF043_Area_average_vertical_hydrostatic_delay = getbitu(payload, offset, 8);  offset += 8; log(LOG_DEBUG, tab, "SF043_Area_average_vertical_hydrostatic_delay = %f", SF043_Area_average_vertical_hydrostatic_delay*0.004 - 0.508);
 		uint32_t SF044_Troposphere_polynomial_coefficient_size_indicator = getbitu(payload, offset, 1);  offset += 1; log(LOG_DEBUG, tab, "SF044_Troposphere_polynomial_coefficient_size_indicator = %d", SF044_Troposphere_polynomial_coefficient_size_indicator);
 		if (SF044_Troposphere_polynomial_coefficient_size_indicator) {
 			//Table 6.15
@@ -312,11 +335,17 @@ void decode_Atmosphere_block(spartn_t* spartn , int *pos) {
 		uint32_t SF051_Troposphere_residual_field_size = getbitu(payload, offset, 1);  offset += 1; log(LOG_DEBUG, tab, "SF051_Troposphere_residual_field_size = %d", SF051_Troposphere_residual_field_size);
 		if (SF051_Troposphere_residual_field_size) {
 			//SF053
-			uint32_t SF053 = getbitu(payload, offset, 8); offset += 8; log(LOG_DEBUG, tab, "SF053 = %f", SF053 * 0.004 - 0.508);
+			uint32_t SF053 = 0;
+			for (i = 0; i < SF039_Number_grid_points_present; i++) {
+				SF053 = getbitu(payload, offset, 8); offset += 8; log(LOG_DEBUG, tab, "SF053 = %f", SF053 * 0.004 - 0.508);
+			}
 		}
 		else {
 			//SF052
-			uint32_t SF052 = getbitu(payload, offset, 6); offset += 6; log(LOG_DEBUG, tab, "SF052 = %f", SF052 * 0.004 - 0.124);
+			uint32_t SF052 = 0;
+			for (i = 0; i < SF039_Number_grid_points_present; i++) {
+				SF052 = getbitu(payload, offset, 6); offset += 6; log(LOG_DEBUG, tab, "SF052 = %f", SF052 * 0.004 - 0.124);
+			}
 		}
 	}
 	//Table 6.16 Ionosphere block 
@@ -334,7 +363,7 @@ void decode_Atmosphere_block(spartn_t* spartn , int *pos) {
 		for (i = 0; i < satellite_mask_len; i++) {
 			if (satellite_mask[i]) {
 				log(LOG_DEBUG, tab, "PRN_ID = %d", i + 1);
-				decode_ionosphere_satellite_block(spartn, &offset, SF040_Tropo, SF054_Ionosphere_equation_type);
+				decode_ionosphere_satellite_block(spartn, &offset, SF040_Iono, SF054_Ionosphere_equation_type, SF039_Number_grid_points_present);
 			}
 		}
 	}
@@ -423,8 +452,8 @@ void decode_LPAC_area_block(spartn_t* spartn, int *pos) {
 	uint32_t SF078_LPAC_area_longitude_grid_node_spacing = getbitu(payload, offset, 2); offset += 2; log(LOG_DEBUG, tab, "SF078_LPAC_area_longitude_grid_node_spacing = %d", SF078_LPAC_area_longitude_grid_node_spacing);
 	uint32_t SF080_Average_area_VTEC = getbitu(payload, offset, 12); offset += 12; log(LOG_DEBUG, tab, "SF080_Average_area_VTEC = %f", SF080_Average_area_VTEC*0.25- 511.75);
 	uint32_t mask_len = SF075_LPAC_area_latitude_grid_node_count * SF076_LPAC_area_longitude_grid_node_count; log(LOG_DEBUG, tab, "mask_len = %d", mask_len);
-	uint8_t SF079_Grid_node_present_mask[16] = { 0 };
-	uint8_t Grid_node_present_mask[128] = {0};
+	uint8_t SF079_Grid_node_present_mask[32] = { 0 };
+	uint8_t Grid_node_present_mask[256] = {0};
 	bitscopy(SF079_Grid_node_present_mask, 0, payload, offset, mask_len); offset += mask_len;
 	bits_to_bytes_array(SF079_Grid_node_present_mask, Grid_node_present_mask, mask_len);
 	log(LOG_DEBUG, tab, "");
@@ -456,6 +485,7 @@ int decode_LPAC_message(spartn_t* spartn) {
 }
 
 int decode_Dynamic_Key(spartn_t* spartn) {
+	return 1;
 }
 
 int decode_Group_Authentication(spartn_t* spartn) {
@@ -487,7 +517,7 @@ int decode_spartn(spartn_t* spartn) {
 		return decode_GAD_message(spartn);
 		break;
 	case 3:
-		return decode_LPAC_message(spartn);//warning
+		return decode_LPAC_message(spartn);
 		break;
 	case 4:
 		//if (spartn->Subtype == 0) {
@@ -641,7 +671,7 @@ int main() {
 			frameCount++;
 			log(LOG_DEBUG, 0, "frame = %d", frameCount);
 			log(LOG_DEBUG, 0, "");
-			if (frameCount == 10) {
+			if (frameCount == 4) {
 				break;
 			}
 		}
