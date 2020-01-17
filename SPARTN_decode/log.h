@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-#define LOG
-//#define TABLE_LOG
+//#define LOG
+#define TABLE_LOG
 
 #define LOG_DEBUG 1
 void log(int level, int tab, const char *format, ...);

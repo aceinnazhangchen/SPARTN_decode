@@ -5,6 +5,8 @@
 #include "log.h"
 #include "spartn.h"
 
+#define Message_Type 3 //0:OCB 1:HPAC 2:GAD 3:LPAC
+
 int decode_Dynamic_Key(spartn_t* spartn) {
 	return 1;
 }
@@ -26,6 +28,10 @@ int decode_Group_Authentication(spartn_t* spartn) {
 }
 
 int decode_spartn(spartn_t* spartn) {
+#ifdef TABLE_LOG
+	if(Message_Type != spartn->type)
+		return 0;
+#endif
 	switch (spartn->type)
 	{
 	case 0:
@@ -102,7 +108,6 @@ int input_spartn_data(spartn_t* spartn, uint8_t data) {
 			}
 		}
 	}
-
 	spartn->buff[spartn->nbyte++] = data;
 	if (spartn->nbyte == 2) {//16
 		spartn->type = getbitu(spartn->buff, 8, 7); log(LOG_DEBUG, tab, "type = %d", spartn->type);
@@ -167,7 +172,25 @@ int main() {
 	if (fp == NULL) {
 		return 0;
 	}
-	open_table_file("../LPAC_message.log");
+#ifdef TABLE_LOG
+	switch (Message_Type) {
+	case 0: {
+		open_table_file("../OCB_message.log");
+	}break;
+	case 1: {
+		open_table_file("../HPAC_message.log");
+		log_hpac_title_to_table();
+	}break;
+	case 2: {
+		open_table_file("../GAD_message.log");
+		log_gad_title_to_table();
+	}break;
+	case 3: {
+		open_table_file("../LPAC_message.log");
+		log_lpac_title_to_table();
+	}break;
+	}
+#endif
 	char buff = ' ';
 	size_t currentCount = 0;
 	size_t frameSize = 0;

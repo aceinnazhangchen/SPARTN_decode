@@ -238,7 +238,7 @@ typedef struct {
 	uint8_t SF076_LPAC_area_longitude_grid_node_count;
 	uint8_t SF077_LPAC_area_latitude_grid_node_spacing;
 	uint8_t SF078_LPAC_area_longitude_grid_node_spacing;
-	float SF080_Average_area_VTEC;
+	double SF080_Average_area_VTEC;
 	uint8_t  SF079_Grid_node_present_mask[256];
 	LPAC_VTEC_t VTEC[64];
 }LPAC_area_t;
