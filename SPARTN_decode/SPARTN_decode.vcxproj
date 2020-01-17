@@ -118,11 +118,18 @@
   <ItemGroup>
     <ClCompile Include="bits.c" />
     <ClCompile Include="crc.c" />
+    <ClCompile Include="log.c" />
+    <ClCompile Include="spartn_common.c" />
+    <ClCompile Include="spartn_GAD.c" />
+    <ClCompile Include="spartn_HPAC.c" />
+    <ClCompile Include="spartn_LPAC.c" />
+    <ClCompile Include="spartn_OCB.c" />
     <ClCompile Include="spartn.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bits.h" />
     <ClInclude Include="crc.h" />
+    <ClInclude Include="log.h" />
     <ClInclude Include="spartn.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

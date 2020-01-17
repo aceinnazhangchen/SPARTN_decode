@@ -24,12 +24,33 @@
     <ClCompile Include="crc.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="log.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="spartn_OCB.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="spartn_common.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="spartn_HPAC.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="spartn_GAD.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="spartn_LPAC.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bits.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="crc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="log.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="spartn.h">

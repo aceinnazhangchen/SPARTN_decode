@@ -16,83 +16,7 @@ void Bp(unsigned char n)
 	}
 }
 
-//按比特位拷贝
-//从src数组首地址跳过sbb个字节，又跳过ssb个比特位，拷贝nbits个比特位的数据到
-//dest数组首地址跳过dbb个字节，又跳过dsb个比特位位置
-int copybits(const unsigned char* src,int sbb/*source begin byte*/,int ssb/*source skip bit*/,
-			unsigned char* dest,int dbb/*dest begin byte*/,int dsb/*dest skip bit*/,int nbits)
-{
-	// assert(src && dest && sbb>=0 && ssb>=0 && dbb>=0 && dsb>=0 && nbits>=0);
-	if(src ==NULL || dest == NULL)return -1;
-	if(sbb < 0 || ssb < 0 || dbb < 0 || dsb <0)return -2;
-	if(nbits==0)return 0;
-	
-	if(ssb == dsb){
-		//边界对其情况
-		//1拷贝对齐部分
-		int copybyte=(nbits -(8-ssb))/8;
-		memmove(dest+dbb+1,src+sbb+1,copybyte);
-		//2拷贝前端不完整字节
-		if(ssb != 0){
-			unsigned char s=src[sbb];
-			s &= 0xFF>>ssb;
-			dest[dbb] &= 0xFF<<(8-ssb);
-			dest[dbb] |= s;
-		}
-		//拷贝后端不完整字节
-		int endbit=(nbits - (8- ssb))%8;
-		if(endbit != 0){
-			unsigned char s=src[sbb+1+copybyte];
-			s &= 0xFF<<(8-endbit);
-			dest[dbb+1 + copybyte] &= 0xFF>>endbit;
-			dest[dbb+1 + copybyte] |= s;	
-		}
-		return (8 - endbit);
-	}
-	//-------------------------------------------------
-	
-	int sbgb = sbb*8 + ssb;	//源开始的比特位置
-	int dbgb = dbb*8 + dsb;	//目标开始比特位置
-	int i,ret;
-	int k1,m1,k2,m2;
-	unsigned char s;
-	if(((dest - src)*8+dbgb) < sbgb  ){
-		// 目标开始位置在源开始位置左边
-		for(i=0;i<nbits;++i){
-			//拷贝某个位
-			//1、源位置			目标位置  	 >>3 == /8   &0x7 == %8
-			k1=(sbgb+i)>>3;		k2=(dbgb+i)>>3;			//得到字节位
-			m1=(sbgb+i)&0x7;	m2=(dbgb+i)&0x7;		//得到比特位 0~7
-			s=src[k1];
-			s &= 0x80>>m1;	//获取源比特位
-			if(m1!=m2){	//偏移位
-				s = m1<m2? (s>>(m2-m1)):(s<<(m1-m2));
-			}
-			dest[k2] &= (~(0x80>>m2));	//目标位置0
-			dest[k2] |= s;	//目标位赋值
-		}
-	}
-	else{
-		for(i=nbits-1; i >=0 ;--i){
-			//拷贝某个位
-			//1、源位置			目标位置
-			k1=(sbgb+i)>>3;		k2=(dbgb+i)>>3;
-			m1=(sbgb+i)&0x7;	m2=(dbgb+i)&0x7;
-			s=src[k1];
-			s &= 0x80>>m1;	//获取源比特位
-			if(m1!=m2){	//偏移位
-				s = m1<m2? (s>>(m2-m1)):(s<<(m1-m2));
-			}
-			dest[k2] &= (~(0x80>>m2));	//目标位置0
-			dest[k2] |= s;	//目标位赋值
-		}
-
-	}
-	return (8 - (dbgb+nbits)%8);
-}
-
-
- int bitscopy(unsigned char* dest,int dbo/*dest bits offset*/,const unsigned char* src,int sbo/*src bits offset*/,int nbits)
+int bitscopy(unsigned char* dest,int dbo/*dest bits offset*/,const unsigned char* src,int sbo/*src bits offset*/,int nbits)
 {
 	if(src ==NULL || dest == NULL)return -1;
 	if(dbo < 0 || dbo < 0)return -2;
@@ -155,10 +79,21 @@ int copybits(const unsigned char* src,int sbb/*source begin byte*/,int ssb/*sour
 			 bytes_array[i + 7 - bi] = ((c >> bi) & 1);
 		 }
 	 }
-	 for (i = 0; i < array_len; i++) {
-		 printf("%d", bytes_array[i]);
-	 }
  }
+
+uint32_t getbitu(const uint8_t *buff, int pos, int len) {
+	uint32_t bits = 0;
+	int i;
+	for (i = pos; i < pos + len; i++) bits = (bits << 1) + ((buff[i / 8] >> (7 - i % 8)) & 1u);
+	return bits;
+}
+
+int32_t getbits(const uint8_t *buff, int pos, int len) {
+	uint32_t bits = getbitu(buff, pos, len);
+	if (len <= 0 || 32 <= len || !(bits&(1u << (len - 1)))) return (int32_t)bits;
+	return (int32_t)(bits | (~0u << len)); /* extend sign */
+}
+
 
 // int main()
 // {
