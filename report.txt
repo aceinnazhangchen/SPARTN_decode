@@ -1,0 +1,16 @@
+﻿SPARTN Messages 消息类型解码
+
+主要解码了4种消息类型:
+Orbit, Clock, Bias (OCB) messages - SM 0-0/0-1 
+High Precision Atmosphere Correction (HPAC) message - SM 1-0/1-1 
+Geographic Area Definition (GAD) message - SM 2-0 
+Low Precision Atmosphere Correction (LPAC) message - SM 3-0 
+
+生成4个数据文件分别是:
+OCB_message.log
+HPAC_message.log
+GAD_message.log
+LPAC_message.log
+
+代码的github地址是:
+https://github.com/aceinnazhangchen/SPARTN_decode
