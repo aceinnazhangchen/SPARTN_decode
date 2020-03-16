@@ -1,9 +1,21 @@
 #include "spartn.h"
 #include "log.h"
 
+FILE*  hpac_table_file = NULL;
+
 void log_hpac_title_to_table() {
-	table_log("%9s,%4s,%3s,%3s,%3s,%7s,%3s,%7s,%7s,%7s", "Time", "area", "NGp", "Tro", "Ion", "delay", "Tgp", "T00", "T01", "T10");
+	table_log_ex(hpac_table_file,"%9s,%4s,%3s,%3s,%3s,%7s,%3s,%7s,%7s,%7s", "Time", "area", "NGp", "Tro", "Ion", "delay", "Tgp", "T00", "T01", "T10");
 }
+
+void open_hpac_table_file() {
+	open_table_file_ex(&hpac_table_file, "../HPAC_message.log");
+	log_hpac_title_to_table();
+}
+
+void close_hpac_table_file() {
+	close_table_file_ex(&hpac_table_file);
+}
+
 void log_hpac_to_table(spartn_t* spartn, HPAC_t* hpac) {
 	int i,j;
 	char sys = ' ';
@@ -19,13 +31,13 @@ void log_hpac_to_table(spartn_t* spartn, HPAC_t* hpac) {
 		HPAC_troposphere_t* troposphere = &hpac->atmosphere[i].troposphere;
 
 		HPAC_troposphere_large_t* large_coefficient = &(troposphere->large_coefficient);
-		table_log("%9d,%4d,%3d,%3d,%3d,%7.3f,%3d,%7.3f,%7.3f,%7.3f", time, area->SF031_Area_ID, area->SF039_Number_grid_points_present, area->SF040_Tropo, area->SF040_Iono, troposphere->SF043_Area_average_vertical_hydrostatic_delay, 
+		table_log_ex(hpac_table_file, "%9d,%4d,%3d,%3d,%3d,%7.3f,%3d,%7.3f,%7.3f,%7.3f", time, area->SF031_Area_ID, area->SF039_Number_grid_points_present, area->SF040_Tropo, area->SF040_Iono, troposphere->SF043_Area_average_vertical_hydrostatic_delay, 
 			troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator,large_coefficient->SF048_T00, large_coefficient->SF049_T01, large_coefficient->SF049_T10, large_coefficient->SF050_T11);
-		table_log("%30s %3s,%3s,%7s,%7s,%7s", "", "sat", "Igp", "C00", "C01", "C10");
+		table_log_ex(hpac_table_file, "%30s %3s,%3s,%7s,%7s,%7s", "", "sat", "Igp", "C00", "C01", "C10");
 		HPAC_ionosphere_t* ionosphere = &hpac->atmosphere[i].ionosphere;
 		for (j = 0; j < ionosphere->ionosphere_satellite_num; j++){
 			HPAC_ionosphere_satellite_t* sat = &ionosphere->ionosphere_satellite[j];
-			table_log("%30s %c%02d,%3d,%7.3f,%7.3f,%7.3f", "", sys,sat->PRN_ID, sat->SF056_Ionosphere_satellite_polynomial_block, sat->small_coefficient.SF057_C00, sat->small_coefficient.SF058_C01, sat->small_coefficient.SF058_C10);
+			table_log_ex(hpac_table_file, "%30s %c%02d,%3d,%7.3f,%7.3f,%7.3f", "", sys,sat->PRN_ID, sat->SF056_Ionosphere_satellite_polynomial_block, sat->small_coefficient.SF057_C00, sat->small_coefficient.SF058_C01, sat->small_coefficient.SF058_C10);
 		}
 	}
 }

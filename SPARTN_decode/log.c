@@ -48,3 +48,32 @@ void table_log(const char *format, ...) {
 #endif // TABLE_LOG
 }
 
+void open_table_file_ex(FILE ** file, const char * filename)
+{
+#ifdef TABLE_LOG
+	*file = fopen(filename, "w");
+#endif // TABLE_LOG
+}
+
+void close_table_file_ex(FILE ** file) {
+#ifdef TABLE_LOG
+	if (*file) {
+		fclose(*file);
+		*file = NULL;
+	}
+#endif // TABLE_LOG
+}
+
+void table_log_ex(FILE * file,const char *format, ...) {
+#ifdef TABLE_LOG
+	va_list ap;
+	char buffer[2048] = { 0 };
+	va_start(ap, format); vsprintf(buffer, format, ap); va_end(ap);
+	if (file) {
+		fprintf(file, "%s \n", buffer);
+	}
+	else {
+		printf("%s \n", buffer);
+	}
+#endif // TABLE_LOG
+}

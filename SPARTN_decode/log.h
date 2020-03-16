@@ -16,6 +16,10 @@ void open_table_file(const char* filename);
 void close_table_file();
 void table_log(const char *format, ...);
 
+void open_table_file_ex(FILE* file, const char* filename);
+void close_table_file_ex(FILE * file);
+void table_log_ex(FILE * file, const char * format, ...);
+
 #ifdef __cplusplus
 }
 #endif

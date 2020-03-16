@@ -1,9 +1,21 @@
 #include "spartn.h"
 #include "log.h"
 
+FILE*  lpac_table_file = NULL;
+
 void log_lpac_title_to_table() {
-	table_log("%9s,%5s,%5s,%5s,%5s,%5s,%5s,%5s,%7s,%12s", "Time", "area", "lat", "lon", "lat_c", "lon_c", "lat_s", "lon_s","VTEC","residual...");
+	table_log_ex(lpac_table_file, "%9s,%5s,%5s,%5s,%5s,%5s,%5s,%5s,%7s,%12s", "Time", "area", "lat", "lon", "lat_c", "lon_c", "lat_s", "lon_s", "VTEC", "residual...");
 }
+
+void open_lpac_table_file() {
+	open_table_file_ex(&lpac_table_file, "../LPAC_message.log");
+	log_lpac_title_to_table();
+}
+
+void close_lpac_table_file() {
+	close_table_file_ex(&lpac_table_file);
+}
+
 void log_lpac_to_table(spartn_t* spartn, LPAC_t* lpac) {
 	int i,j;
 	uint32_t time = spartn->GNSS_time_type;
@@ -19,7 +31,7 @@ void log_lpac_to_table(spartn_t* spartn, LPAC_t* lpac) {
 			}
 			strcat(VTEC_array, VTEC);
 		}
-		table_log("%9d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%7.3f,%s", time, area->SF072_LPAC_area_ID,
+		table_log_ex(lpac_table_file, "%9d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%7.3f,%s", time, area->SF072_LPAC_area_ID,
 			area->SF073_LPAC_area_reference_latitude, area->SF074_LPAC_area_reference_longitude,
 			area->SF075_LPAC_area_latitude_grid_node_count, area->SF076_LPAC_area_longitude_grid_node_count,
 			area->SF077_LPAC_area_latitude_grid_node_spacing, area->SF078_LPAC_area_longitude_grid_node_spacing,

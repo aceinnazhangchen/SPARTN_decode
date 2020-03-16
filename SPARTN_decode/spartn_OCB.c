@@ -1,24 +1,34 @@
 #include "spartn.h"
 #include "log.h"
 
+FILE*  ocb_table_file = NULL;
+
+void open_ocb_table_file() {
+	open_table_file_ex(&ocb_table_file, "../OCB_message.log");
+}
+
+void close_ocb_table_file() {
+	close_table_file_ex(&ocb_table_file);
+}
+
 void log_ocb_to_table(spartn_t* spartn, OCB_t* ocb) {
 	int i;
 	uint32_t time = spartn->GNSS_time_type;
 	if (spartn->Subtype == 0) {
-		table_log("%9s, %3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s", "Time", "Sat", "Ad", "Cd", "Rd", "Clk", "L1C", "L2W", "L2L", "C1C", "C2W", "C2L");
+		table_log_ex(ocb_table_file, "%9s, %3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s", "Time", "Sat", "Ad", "Cd", "Rd", "Clk", "L1C", "L2W", "L2L", "C1C", "C2W", "C2L");
 	}
 	else {
-		table_log("%9s, %3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s %9s,%9s %9s", "Time", "Sat", "Ad", "Cd", "Rd", "Clk", "L1C", "L2C", "", "C1C", "C2C", "");
+		table_log_ex(ocb_table_file, "%9s, %3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s %9s,%9s %9s", "Time", "Sat", "Ad", "Cd", "Rd", "Clk", "L1C", "L2C", "", "C1C", "C2C", "");
 	}
 	for (i = 0; i < ocb->satellite_num; i++) {
 		if (spartn->Subtype == 0) {
-			table_log("%9d, G%02d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb->satellite[i].PRN_ID, 
+			table_log_ex(ocb_table_file, "%9d, G%02d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb->satellite[i].PRN_ID, 
 				ocb->satellite[i].orbit.SF020_along, ocb->satellite[i].orbit.SF020_cross, ocb->satellite[i].orbit.SF020_radial,ocb->satellite[i].clock.SF020_Clock_correction, 
 				ocb->satellite[i].GPS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb->satellite[i].GPS_bias.Phase_bias[1].SF020_Phase_bias_correction, ocb->satellite[i].GPS_bias.Phase_bias[2].SF020_Phase_bias_correction,
 				ocb->satellite[i].GPS_bias.SF029_Code_bias_correction[0], ocb->satellite[i].GPS_bias.SF029_Code_bias_correction[1], ocb->satellite[i].GPS_bias.SF029_Code_bias_correction[2]);
 		}
 		else {
-			table_log("%9d, R%02d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb->satellite[i].PRN_ID, 
+			table_log_ex(ocb_table_file, "%9d, R%02d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb->satellite[i].PRN_ID, 
 				ocb->satellite[i].orbit.SF020_along, ocb->satellite[i].orbit.SF020_cross, ocb->satellite[i].orbit.SF020_radial,ocb->satellite[i].clock.SF020_Clock_correction, 
 				ocb->satellite[i].GLONASS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb->satellite[i].GLONASS_bias.Phase_bias[1].SF020_Phase_bias_correction, "",
 				ocb->satellite[i].GLONASS_bias.SF029_Code_bias_correction[0], ocb->satellite[i].GLONASS_bias.SF029_Code_bias_correction[1], "");

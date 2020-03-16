@@ -1,15 +1,27 @@
 #include "spartn.h"
 #include "log.h"
 
+FILE*  gad_table_file = NULL;
+
 void log_gad_title_to_table() {
-	table_log("%9s,%5s,%7s,%7s,%5s,%5s,%7s,%7s", "Time","area","lat", "lon", "lat_c", "lon_c", "lat_s", "lon_s");
+	table_log_ex(gad_table_file, "%9s,%5s,%8s,%8s,%5s,%5s,%7s,%7s", "Time", "area", "lat", "lon", "lat_c", "lon_c", "lat_s", "lon_s");
 }
+
+void open_gad_table_file() {
+	open_table_file_ex(&gad_table_file, "../GAD_message.log");
+	log_gad_title_to_table();
+}
+
+void close_gad_table_file() {
+	close_table_file_ex(&gad_table_file);
+}
+
 void log_gad_to_table(spartn_t* spartn, GAD_t* gad) {
 	int i;
 	uint32_t time = spartn->GNSS_time_type;
 	for (i = 0; i < gad->header.SF030_Area_count; i++) {
 		GAD_area_t* area = &gad->areas[i];
-		table_log("%9d,%5d,%7.3f,%7.3f,%5d,%5d,%7.3f,%7.3f", time, area->SF031_Area_ID, 
+		table_log_ex(gad_table_file, "%9d,%5d,%8.3f,%8.3f,%5d,%5d,%7.3f,%7.3f", time, area->SF031_Area_ID, 
 			area->SF032_Area_reference_latitude, area->SF033_Area_reference_longitude,
 			area->SF034_Area_latitude_grid_node_count, area->SF035_Area_longitude_grid_node_count,
 			area->SF036_Area_latitude_grid_node_spacing, area->SF037_Area_longitude_grid_node_spacing);

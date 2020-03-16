@@ -5,7 +5,7 @@
 #include "log.h"
 #include "spartn.h"
 
-#define Message_Type 3 //0:OCB 1:HPAC 2:GAD 3:LPAC
+#define Message_Type 2 //0:OCB 1:HPAC 2:GAD 3:LPAC
 
 int decode_Dynamic_Key(spartn_t* spartn) {
 	return 1;
@@ -28,10 +28,10 @@ int decode_Group_Authentication(spartn_t* spartn) {
 }
 
 int decode_spartn(spartn_t* spartn) {
-#ifdef TABLE_LOG
-	if(Message_Type != spartn->type)
-		return 0;
-#endif
+//#ifdef TABLE_LOG
+//	if(Message_Type != spartn->type)
+//		return 0;
+//#endif
 	switch (spartn->type)
 	{
 	case 0:
@@ -168,28 +168,15 @@ int input_spartn_data(spartn_t* spartn, uint8_t data) {
 int main() {
 	
 	FILE* fp;
-	fp = fopen("RawSpartnPreEncrypt.cap","rb");
+	fp = fopen("..\\raw_data\\RawSpartnPreEncrypt.cap","rb");
 	if (fp == NULL) {
 		return 0;
 	}
 #ifdef TABLE_LOG
-	switch (Message_Type) {
-	case 0: {
-		open_table_file("../OCB_message.log");
-	}break;
-	case 1: {
-		open_table_file("../HPAC_message.log");
-		log_hpac_title_to_table();
-	}break;
-	case 2: {
-		open_table_file("../GAD_message.log");
-		log_gad_title_to_table();
-	}break;
-	case 3: {
-		open_table_file("../LPAC_message.log");
-		log_lpac_title_to_table();
-	}break;
-	}
+	open_ocb_table_file();
+	open_hpac_table_file();
+	open_gad_table_file();
+	open_lpac_table_file();
 #endif
 	char buff = ' ';
 	size_t currentCount = 0;
@@ -222,7 +209,12 @@ int main() {
 			//}
 		}
 	}
-	close_table_file();
+#ifdef TABLE_LOG
+	close_ocb_table_file();
+	close_hpac_table_file();
+	close_gad_table_file();
+	close_lpac_table_file();
+#endif
 	fclose(fp);
 	system("pause");
 	return 0;
