@@ -42,6 +42,24 @@
     <ClCompile Include="spartn_LPAC.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="GenVRSObs.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="rtcm.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ephemeris.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="gnss_math.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="model.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="tides.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bits.h">
@@ -54,6 +72,27 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="spartn.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GenVRSObs.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="rtcm.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="rtklib_core.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ephemeris.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="gnss_math.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="model.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="tides.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

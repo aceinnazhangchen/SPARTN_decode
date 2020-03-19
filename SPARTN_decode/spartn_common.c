@@ -48,3 +48,122 @@ void decode_GLONASS_satellite_mask(uint8_t* data, int *pos, uint8_t* satellite_m
 	log(LOG_DEBUG, tab, "SF012 = %s", str_satellite_mask);
 	*pos = offset;
 }
+
+void transform_spartn_ssr(raw_spartn_t* raw_spartn)
+{
+    int i = 0, j = 0, n = 0;
+    if (!raw_spartn->spartn_out) return;
+    spartn_t* spartn = raw_spartn->spartn_out;
+    if (!spartn->ocb) return;
+    if (!spartn->hpac) return;
+    if (!spartn->gad) return;
+    if (!spartn->lpac) return;
+    OCB_t* ocb = spartn->ocb;
+    HPAC_t* hpac = spartn->hpac;
+    GAD_t* gad = spartn->gad;
+    LPAC_t* lpac = spartn->lpac;
+    sap_ssr_t* ssr = NULL;
+    OCB_Satellite_t* sat_obc = NULL;
+    gad_ssr_t* ssr_gad = NULL;
+    //to full time
+    if (raw_spartn->Time_tag_type) {
+        spartn->day = raw_spartn->GNSS_time_type / DAY_SECOND;
+    }
+    else {
+        raw_spartn->GNSS_time_type = spartn->day*DAY_SECOND + raw_spartn->GNSS_time_type;
+    }
+
+    if (spartn->type == 0) {
+        for (i = 0; i < ocb->satellite_num; ++i) {
+            if (spartn->ssr_offset >= SSR_NUM)break;
+            ssr = &spartn->ssr[spartn->ssr_offset];
+            sat_obc = &ocb->satellite[i];
+            ssr->prn = sat_obc->PRN_ID;
+            ssr->sys = raw_spartn->Subtype;
+
+            if (sat_obc->orbit.SF018_SF019_IODE != 0) {
+                ssr->t0[0] = (double)raw_spartn->GNSS_time_type;
+                ssr->iod[0] = sat_obc->orbit.SF018_SF019_IODE;
+                ssr->deph[0] = sat_obc->orbit.SF020_radial;
+                ssr->deph[1] = sat_obc->orbit.SF020_along;
+                ssr->deph[2] = sat_obc->orbit.SF020_cross;
+                ssr->yaw_ang = sat_obc->orbit.SF021_Satellite_yaw;
+            }
+
+            ssr->t0[1] = (double)raw_spartn->GNSS_time_type;
+            ssr->iod[1] = sat_obc->clock.SF022_IODE_continuity;
+            ssr->ure = sat_obc->clock.SF024_User_range_error;
+            ssr->dclk = sat_obc->clock.SF020_Clock_correction;
+
+            int update_num = 0;
+            for (j = 0; j < Bias_Effective_Len; ++j) {
+                if (sat_obc->GPS_bias.SF027_code_bias[j] == 1) {
+                    ssr->cbias[j] = sat_obc->GPS_bias.SF029_Code_bias_correction[j];
+                    update_num++;
+                }
+            }
+            if (update_num > 0) {
+                ssr->t0[2] = (double)raw_spartn->GNSS_time_type;
+            }
+            update_num = 0;
+            for (j = 0; j < Bias_Effective_Len; ++j) {
+                if (sat_obc->GPS_bias.SF025_phase_bias[j] == 1) {
+                    ssr->iod[j + 2] = sat_obc->GPS_bias.Phase_bias[j].SF015_Continuity_indicator;
+                    ssr->fix_flag[j] = sat_obc->GPS_bias.Phase_bias[j].SF023_Fix_flag;
+                    ssr->pbias[j] = sat_obc->GPS_bias.Phase_bias[j].SF020_Phase_bias_correction;
+                    update_num++;
+                }
+            }
+            if (update_num > 0) {
+                ssr->t0[3] = (double)raw_spartn->GNSS_time_type;
+            }
+
+            spartn->ssr_offset++;
+        }
+        if (ocb->header.SF010_EOS == 1) {
+            spartn->ssr_offset = 0;
+        }
+    }
+    else if (spartn->type == 1) {
+        for (i = 0; i < hpac->header.SF030_Area_count; ++i) {
+            for (j = 0; j < SSR_NUM; ++j) {
+                ssr = &spartn->ssr[j];
+                if (ssr->prn == 0) break;
+                if (ssr->sys != spartn->Subtype) continue;
+                ssr->areaId[i] = hpac->atmosphere[i].area.SF031_Area_ID;
+                ssr->ave_htd = hpac->atmosphere[i].troposphere.SF043_Area_average_vertical_hydrostatic_delay;
+                ssr->tro_coef[i * 3 + 0] = hpac->atmosphere[i].troposphere.small_coefficient.SF045_T00;
+                ssr->tro_coef[i * 3 + 1] = hpac->atmosphere[i].troposphere.small_coefficient.SF046_T01;
+                ssr->tro_coef[i * 3 + 2] = hpac->atmosphere[i].troposphere.small_coefficient.SF046_T10;
+                for (n = 0; n < hpac->atmosphere[i].ionosphere.ionosphere_satellite_num; ++n) {
+                    if (ssr->prn == hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].PRN_ID) {
+                        ssr->stec_coef[i * 3 + 0] = hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].small_coefficient.SF057_C00;
+                        ssr->stec_coef[i * 3 + 1] = hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].small_coefficient.SF058_C01;
+                        ssr->stec_coef[i * 3 + 2] = hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].small_coefficient.SF058_C10;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    else if (spartn->type == 2) {
+        for (i = 0; i < gad->header.SF030_Area_count; ++i) {
+            for (j = 0; j < RAP_NUM; ++j) {
+                ssr_gad = &spartn->ssr_gad[j];
+                if (ssr_gad->areaId == gad->areas[i].SF031_Area_ID) {
+                    break;
+                }
+                if (ssr_gad->areaId == 0) {
+                    break;
+                }
+            }
+            ssr_gad->areaId = gad->areas[i].SF031_Area_ID;
+            ssr_gad->rap_lon = gad->areas[i].SF033_Area_reference_longitude;
+            ssr_gad->rap_lat = gad->areas[i].SF032_Area_reference_latitude;
+            ssr_gad->nc_lon = gad->areas[i].SF035_Area_longitude_grid_node_count;
+            ssr_gad->nc_lat = gad->areas[i].SF034_Area_latitude_grid_node_count;
+            ssr_gad->spa_lon = gad->areas[i].SF037_Area_longitude_grid_node_spacing;
+            ssr_gad->spa_lat = gad->areas[i].SF036_Area_latitude_grid_node_spacing;
+        }
+    }
+}

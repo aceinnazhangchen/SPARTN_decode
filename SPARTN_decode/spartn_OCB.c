@@ -3,32 +3,37 @@
 
 FILE*  ocb_table_file = NULL;
 
-void open_ocb_table_file() {
-	open_table_file_ex(&ocb_table_file, "../OCB_message.log");
+void open_ocb_table_file(const char* filename) {
+	if (filename) {
+		open_table_file_ex(&ocb_table_file, filename);
+	}
+	else {
+		open_table_file_ex(&ocb_table_file, "../OCB_message.log");
+	}
 }
 
 void close_ocb_table_file() {
 	close_table_file_ex(&ocb_table_file);
 }
 
-void log_ocb_to_table(spartn_t* spartn, OCB_t* ocb) {
+void log_ocb_to_table(raw_spartn_t* spartn, OCB_t* ocb) {
 	int i;
 	uint32_t time = spartn->GNSS_time_type;
 	if (spartn->Subtype == 0) {
-		table_log_ex(ocb_table_file, "%9s, %3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s", "Time", "Sat", "Ad", "Cd", "Rd", "Clk", "L1C", "L2W", "L2L", "C1C", "C2W", "C2L");
+		table_log_ex(ocb_table_file, "%d%8s, %3s,%3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s", ocb->header.SF010_EOS, "Time", "Sat", "Iod", "Ad", "Cd", "Rd", "Clk", "L1C", "L2W", "L2L", "C1C", "C2W", "C2L");
 	}
 	else {
-		table_log_ex(ocb_table_file, "%9s, %3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s %9s,%9s %9s", "Time", "Sat", "Ad", "Cd", "Rd", "Clk", "L1C", "L2C", "", "C1C", "C2C", "");
+		table_log_ex(ocb_table_file, "%d%8s, %3s,%3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s %9s,%9s %9s", ocb->header.SF010_EOS, "Time", "Sat", "Iod", "Ad", "Cd", "Rd", "Clk", "L1C", "L2C", "", "C1C", "C2C", "");
 	}
 	for (i = 0; i < ocb->satellite_num; i++) {
 		if (spartn->Subtype == 0) {
-			table_log_ex(ocb_table_file, "%9d, G%02d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb->satellite[i].PRN_ID, 
+			table_log_ex(ocb_table_file, "%9d, G%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb->satellite[i].PRN_ID, ocb->satellite[i].orbit.SF018_SF019_IODE,
 				ocb->satellite[i].orbit.SF020_along, ocb->satellite[i].orbit.SF020_cross, ocb->satellite[i].orbit.SF020_radial,ocb->satellite[i].clock.SF020_Clock_correction, 
 				ocb->satellite[i].GPS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb->satellite[i].GPS_bias.Phase_bias[1].SF020_Phase_bias_correction, ocb->satellite[i].GPS_bias.Phase_bias[2].SF020_Phase_bias_correction,
 				ocb->satellite[i].GPS_bias.SF029_Code_bias_correction[0], ocb->satellite[i].GPS_bias.SF029_Code_bias_correction[1], ocb->satellite[i].GPS_bias.SF029_Code_bias_correction[2]);
 		}
 		else {
-			table_log_ex(ocb_table_file, "%9d, R%02d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb->satellite[i].PRN_ID, 
+			table_log_ex(ocb_table_file, "%9d, R%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb->satellite[i].PRN_ID, ocb->satellite[i].orbit.SF018_SF019_IODE,
 				ocb->satellite[i].orbit.SF020_along, ocb->satellite[i].orbit.SF020_cross, ocb->satellite[i].orbit.SF020_radial,ocb->satellite[i].clock.SF020_Clock_correction, 
 				ocb->satellite[i].GLONASS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb->satellite[i].GLONASS_bias.Phase_bias[1].SF020_Phase_bias_correction, "",
 				ocb->satellite[i].GLONASS_bias.SF029_Code_bias_correction[0], ocb->satellite[i].GLONASS_bias.SF029_Code_bias_correction[1], "");
@@ -58,7 +63,7 @@ void decode_bias_mask(uint8_t* data, int *pos, uint8_t *mask_array, uint32_t eff
 	*pos = offset;
 }
 //Table 6.9 phase bias block 
-void decode_phase_bias_block(spartn_t* spartn, uint8_t* mask_array, OCB_Phase_bias_t* bias_array, uint32_t effective_len,int tab) {
+void decode_phase_bias_block(raw_spartn_t* spartn, uint8_t* mask_array, OCB_Phase_bias_t* bias_array, uint32_t effective_len,int tab) {
 	uint8_t* payload = spartn->payload;
 	int i;
 	for (i = 0; i < effective_len; i++) {
@@ -70,7 +75,7 @@ void decode_phase_bias_block(spartn_t* spartn, uint8_t* mask_array, OCB_Phase_bi
 	}
 }
 //Code bias correction
-void decode_code_bias_correction(spartn_t* spartn, uint8_t *mask_array, double *bias_array, uint32_t effective_len, int tab) {
+void decode_code_bias_correction(raw_spartn_t* spartn, uint8_t *mask_array, double *bias_array, uint32_t effective_len, int tab) {
 	uint8_t* payload = spartn->payload;
 	int i;
 	for (i = 0; i < effective_len; i++) {
@@ -80,7 +85,7 @@ void decode_code_bias_correction(spartn_t* spartn, uint8_t *mask_array, double *
 	}
 }
 //Table 6.5 orbit block 
-void decode_orbit_block(spartn_t* spartn, OCB_orbit_t* orbit, uint32_t SF008_Yaw_present_flag, int tab) {
+void decode_orbit_block(raw_spartn_t* spartn, OCB_orbit_t* orbit, uint32_t SF008_Yaw_present_flag, int tab) {
 	uint8_t* payload = spartn->payload;
 	if (spartn->Subtype == 0) {
 		orbit->SF018_SF019_IODE = getbitu(payload, spartn->offset, 8);  spartn->offset += 8; log(LOG_DEBUG, tab, "SF018_IODE = %d", orbit->SF018_SF019_IODE);
@@ -96,34 +101,34 @@ void decode_orbit_block(spartn_t* spartn, OCB_orbit_t* orbit, uint32_t SF008_Yaw
 	}
 }
 //Table 6.6 clock block 
-void decode_clock_block(spartn_t* spartn, OCB_clock_t* clock, int tab) {
+void decode_clock_block(raw_spartn_t* spartn, OCB_clock_t* clock, int tab) {
 	uint8_t* payload = spartn->payload;
 	clock->SF022_IODE_continuity = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF022_IODE_continuity = %d", clock->SF022_IODE_continuity);
 	clock->SF020_Clock_correction = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; log(LOG_DEBUG, tab, "SF020_Clock_correction = %f", clock->SF020_Clock_correction);
 	clock->SF024_User_range_error = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF024_User_range_error = %d", clock->SF024_User_range_error);
 }
 //Table 6.7 GPS bias block
-void decode_GPS_bias_block(spartn_t* spartn, OCB_GPS_bias_t* GPS_bias, int tab) {
+void decode_GPS_bias_block(raw_spartn_t* spartn, OCB_GPS_bias_t* GPS_bias, int tab) {
 	uint8_t* payload = spartn->payload;
 	decode_bias_mask(payload, &spartn->offset, GPS_bias->SF025_phase_bias, SF025_Phase_Bias_Effective_Len, spartn->Subtype);
 	//Table 6.9 Phase bias block (Repeated)
 	decode_phase_bias_block(spartn,GPS_bias->SF025_phase_bias, GPS_bias->Phase_bias, SF025_Phase_Bias_Effective_Len, tab + 1);
 	//SF027
-	decode_bias_mask(payload, &spartn->offset, GPS_bias->SF027_phase_bias, SF027_Phase_Bias_Effective_Len, spartn->Subtype);
-	decode_code_bias_correction(spartn, GPS_bias->SF027_phase_bias, GPS_bias->SF029_Code_bias_correction, SF027_Phase_Bias_Effective_Len, tab + 1);
+	decode_bias_mask(payload, &spartn->offset, GPS_bias->SF027_code_bias, SF027_Phase_Bias_Effective_Len, spartn->Subtype);
+	decode_code_bias_correction(spartn, GPS_bias->SF027_code_bias, GPS_bias->SF029_Code_bias_correction, SF027_Phase_Bias_Effective_Len, tab + 1);
 }
 //Table 6.8 GLONASS bias block
-void decode_GLONASS_bias_block(spartn_t* spartn, OCB_GLONASS_bias_t* GLONASS_bias, int tab) {
+void decode_GLONASS_bias_block(raw_spartn_t* spartn, OCB_GLONASS_bias_t* GLONASS_bias, int tab) {
 	uint8_t* payload = spartn->payload;
 	decode_bias_mask(payload, &spartn->offset, GLONASS_bias->SF026_phase_bias, SF026_Phase_Bias_Effective_Len, spartn->Subtype);
 	//Table 6.9 Phase bias block (Repeated)
 	decode_phase_bias_block(spartn, GLONASS_bias->SF026_phase_bias, GLONASS_bias->Phase_bias, SF026_Phase_Bias_Effective_Len, tab + 1);
 	//SF028
-	decode_bias_mask(payload, &spartn->offset, GLONASS_bias->SF028_phase_bias, SF028_Phase_Bias_Effective_Len, spartn->Subtype);
-	decode_code_bias_correction(spartn, GLONASS_bias->SF028_phase_bias, GLONASS_bias->SF029_Code_bias_correction, SF028_Phase_Bias_Effective_Len, tab + 1);
+	decode_bias_mask(payload, &spartn->offset, GLONASS_bias->SF028_code_bias, SF028_Phase_Bias_Effective_Len, spartn->Subtype);
+	decode_code_bias_correction(spartn, GLONASS_bias->SF028_code_bias, GLONASS_bias->SF029_Code_bias_correction, SF028_Phase_Bias_Effective_Len, tab + 1);
 }
 //Table 6.4 satellite block
-void decode_satellite_block(spartn_t* spartn, OCB_Satellite_t* sat, uint32_t SF008_Yaw_present_flag, int tab) {
+void decode_satellite_block(raw_spartn_t* spartn, OCB_Satellite_t* sat, uint32_t SF008_Yaw_present_flag, int tab) {
 	uint8_t* payload = spartn->payload;
 	log(LOG_DEBUG, tab, "PRN_ID = %d", sat->PRN_ID);
 	sat->SF013_DNU = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF013_DNU = %d", sat->SF013_DNU);
@@ -152,7 +157,7 @@ void decode_satellite_block(spartn_t* spartn, OCB_Satellite_t* sat, uint32_t SF0
 	}
 }
 //Table 6.3 Header block 
-void decode_OCB_hearder(spartn_t* spartn, OCB_header_t* ocb_header,int tab) {
+void decode_OCB_hearder(raw_spartn_t* spartn, OCB_header_t* ocb_header,int tab) {
 	uint8_t* payload = spartn->payload;
 	ocb_header->SF005_SIOU = getbitu(payload, spartn->offset, 9); spartn->offset += 9; log(LOG_DEBUG, tab, "SF005_SIOU = %d", ocb_header->SF005_SIOU);
 	ocb_header->SF010_EOS = getbitu(payload, spartn->offset, 1); spartn->offset += 1; log(LOG_DEBUG, tab, "SF010_EOS = %d", ocb_header->SF010_EOS);
@@ -168,24 +173,30 @@ void decode_OCB_hearder(spartn_t* spartn, OCB_header_t* ocb_header,int tab) {
 	}
 }
 // SM 0-0/0-1  OCB messages 
-int decode_OCB_message(spartn_t* spartn) {
+int decode_OCB_message(raw_spartn_t* spartn) 
+{
+	if (!spartn) return 0;
+	if (!spartn->spartn_out) return 0;
+	if (!spartn->spartn_out->ocb) return 0;
 	int i,tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	OCB_t ocb= { 0 };
-	OCB_header_t* ocb_header = &ocb.header;
+	OCB_t* ocb= spartn->spartn_out->ocb;
+	memset(ocb, 0, sizeof(OCB_t));
+	OCB_header_t* ocb_header = &ocb->header;
 	//Table 6.3 Header block 
 	decode_OCB_hearder(spartn,ocb_header, tab);
 	//Table 6.4 Satellite block (Repeated) 
 	for (i = 0; i < ocb_header->Satellite_mask_len; i++) {
 		if (ocb_header->SF011_SF012_satellite_mask[i]) {
-			ocb.satellite[ocb.satellite_num].PRN_ID = i + 1;
-			decode_satellite_block(spartn, &ocb.satellite[ocb.satellite_num], ocb_header->SF008_Yaw_present_flag, tab+1);
-			ocb.satellite_num++;
+			ocb->satellite[ocb->satellite_num].PRN_ID = i + 1;
+			decode_satellite_block(spartn, &ocb->satellite[ocb->satellite_num], ocb_header->SF008_Yaw_present_flag, tab+1);
+			ocb->satellite_num++;
 		}
 	}
+	transform_spartn_ssr(spartn);
 	log(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	log(LOG_DEBUG, tab, "size of OCB_t = %d ", sizeof(OCB_t));
-	log_ocb_to_table(spartn, &ocb);
+	log_ocb_to_table(spartn, ocb);
 	return 1;
 }

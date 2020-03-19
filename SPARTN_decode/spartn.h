@@ -2,32 +2,19 @@
 #define SPARTN_H
 
 #include <stdint.h>
+#include <memory.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define SPARTN_PREAMB 0x73 
+#define RAP_NUM       36
+#define SSR_NUM       20
 
-typedef struct {
-	uint32_t nbyte;
-	uint8_t buff[1200];
-	uint32_t type;
-	uint32_t len;
-	uint32_t EAF;
-	uint32_t CRC_type;
-	uint32_t Frame_CRC;
-	uint32_t Subtype;
-	uint32_t Time_tag_type;
-	uint32_t GNSS_time_type;
-	uint32_t Solution_ID;
-	uint32_t Solution_processor_ID;
-	uint32_t Encryption_ID;
-	uint32_t ESN;						//Encryption Sequence Number
-	uint32_t AI;						//Authentication Indicator 
-	uint32_t EAL;						//Embedded Authentication Length
-	uint32_t Payload_offset;
-	uint32_t Message_CRC;				//
-	//
-	uint8_t* payload;
-	uint32_t offset;
-} spartn_t;
+#define DAY_SECOND    86400
+
 //=============================
 // SM 0-0/0-1  OCB messages 
 //=============================
@@ -40,46 +27,46 @@ typedef struct {
 
 typedef struct {
 	uint32_t SF005_SIOU;
-	uint32_t SF010_EOS;
-	uint32_t SF069_Reserved;
-	uint32_t SF008_Yaw_present_flag;
-	uint32_t SF009_Satellite_reference_datum;
-	uint32_t SF016_SF017_Ephemeris_type;
-	uint8_t  SF011_SF012_satellite_mask[64];
-	uint8_t  Satellite_mask_len;
+	uint8_t SF010_EOS;
+	uint8_t SF069_Reserved;
+	uint8_t SF008_Yaw_present_flag;
+	uint8_t SF009_Satellite_reference_datum;
+	uint8_t SF016_SF017_Ephemeris_type;
+	uint8_t SF011_SF012_satellite_mask[64];
+	uint8_t Satellite_mask_len;
 } OCB_header_t;
 
 typedef struct {						//Present if SF014_Orbit_block_0 == 1
 	uint32_t SF018_SF019_IODE;
-	float SF020_radial;
-	float SF020_along;
-	float SF020_cross;
+	double SF020_radial;
+	double SF020_along;
+	double SF020_cross;
 	uint32_t SF021_Satellite_yaw;		//Present if SF008_Yaw_present_flag == 1
 }OCB_orbit_t;
 
 typedef struct {						//Present if SF014_Clock_block_1 == 1
 	uint32_t SF022_IODE_continuity;
-	float SF020_Clock_correction;
+	double SF020_Clock_correction;
 	uint32_t SF024_User_range_error;
 }OCB_clock_t;
 
 typedef struct {
 	uint32_t SF023_Fix_flag;
 	uint32_t SF015_Continuity_indicator;
-	float SF020_Phase_bias_correction;
+	double SF020_Phase_bias_correction;
 }OCB_Phase_bias_t;
 
 typedef struct {						//Present if SF014_Bias_block_2 == 1
 	uint8_t SF025_phase_bias[Bias_Effective_Len];
 	OCB_Phase_bias_t Phase_bias[Bias_Effective_Len];
-	uint8_t SF027_phase_bias[Bias_Effective_Len];
+	uint8_t SF027_code_bias[Bias_Effective_Len];
 	double SF029_Code_bias_correction[Bias_Effective_Len];
 }OCB_GPS_bias_t;
 
 typedef struct {						//Present if SF014_Bias_block_2 == 1
 	uint8_t SF026_phase_bias[Bias_Effective_Len];
 	OCB_Phase_bias_t Phase_bias[Bias_Effective_Len];
-	uint8_t SF028_phase_bias[Bias_Effective_Len];
+	uint8_t SF028_code_bias[Bias_Effective_Len];
 	double SF029_Code_bias_correction[Bias_Effective_Len];
 }OCB_GLONASS_bias_t;
 
@@ -143,6 +130,7 @@ typedef struct {
 		HPAC_troposphere_small_t small_coefficient;
 		HPAC_troposphere_large_t large_coefficient;
 	};
+	//SF040_Tropo == 2
 	uint8_t SF051_Troposphere_residual_field_size;
 	union {
 		uint8_t SF052[128];
@@ -172,6 +160,7 @@ typedef struct {
 		HPAC_ionosphere_small_t small_coefficient;
 		HPAC_ionosphere_large_t large_coefficient;
 	};
+	//SF040_Iono == 2
 	uint8_t SF063_Ionosphere_residual_field_size;
 	uint16_t ionosphere_residual_slant_delay[128];
 }HPAC_ionosphere_satellite_t;
@@ -199,12 +188,12 @@ typedef struct {
 //=============================
 typedef struct {
 	uint8_t SF031_Area_ID;
-	float SF032_Area_reference_latitude;
-	float SF033_Area_reference_longitude;
+	double SF032_Area_reference_latitude;
+	double SF033_Area_reference_longitude;
 	uint8_t SF034_Area_latitude_grid_node_count;
 	uint8_t SF035_Area_longitude_grid_node_count;
-	float SF036_Area_latitude_grid_node_spacing;
-	float SF037_Area_longitude_grid_node_spacing;
+	double SF036_Area_latitude_grid_node_spacing;
+	double SF037_Area_longitude_grid_node_spacing;
 }GAD_area_t;
 
 typedef struct {
@@ -225,8 +214,8 @@ typedef struct {
 	uint8_t SF055_VTEC_quality;
 	uint8_t SSF081_VTEC_size_indicator;
 	union {
-		float SF082_VTEC_residual;
-		float SF083_VTEC_residual;
+		double SF082_VTEC_residual;
+		double SF083_VTEC_residual;
 	};
 }LPAC_VTEC_t;
 
@@ -255,9 +244,91 @@ typedef struct {
 	LPAC_area_t areas[4];
 }LPAC_t;
 
-int decode_OCB_message(spartn_t* spartn);
-int decode_HPAC_message(spartn_t* spartn);
-int decode_GAD_message(spartn_t* spartn);
-int decode_LPAC_message(spartn_t* spartn);
- 
+typedef struct {
+	int     areaId;
+	double  rap_lon;
+	double  rap_lat;
+	int     nc_lon;
+	int     nc_lat;
+	double  spa_lon;
+	double  spa_lat;
+}gad_ssr_t;
+
+typedef struct {                            /* SSR correction type */
+    unsigned char prn;
+	unsigned char sys;
+    double  t0[6];                         /* epoch time (GPST) {eph,clk,cbias,pbias,tro,ion} */
+    int     iod[5];                        /* iod ssr {eph,clk,pbias} */
+	double  ure;                           /* user range error*/
+	int     fix_flag[3];                   /*0: float, 1:fixed*/
+    double  deph[3];                       /* delta orbit {radial,along,cross} (m) */
+    double  dclk;                          /* delta clock {c0} (m) */
+    double  cbias[3];                      /* code biases (m) */
+    double  pbias[3];                      /* phase biases (m) */
+    double  yaw_ang;                       /* yaw angle and yaw rate (deg,deg/s) */
+	int     areaId[RAP_NUM];
+    double  ave_htd;
+    double  tro_coef[3 * RAP_NUM];                  /* T00,T01,T10*/
+    double  stec_coef[3 * RAP_NUM];                 /* C00,C01.C10*/
+} sap_ssr_t;
+
+typedef struct {
+	uint32_t type;
+	uint32_t Subtype;
+	uint32_t len;
+	uint32_t day;
+	OCB_t* ocb;
+	HPAC_t* hpac;
+	GAD_t* gad;
+	LPAC_t* lpac;
+	gad_ssr_t ssr_gad[RAP_NUM];
+	uint8_t ssr_offset;
+	sap_ssr_t ssr[SSR_NUM];
+} spartn_t;
+
+typedef struct {
+    uint32_t nbyte;
+    uint8_t buff[1200];
+    uint32_t type;
+    uint32_t len;
+    uint32_t EAF;
+    uint32_t CRC_type;
+    uint32_t Frame_CRC;
+    uint32_t Subtype;
+    uint32_t Time_tag_type;
+    uint32_t GNSS_time_type;
+    uint32_t Solution_ID;
+    uint32_t Solution_processor_ID;
+    uint32_t Encryption_ID;
+    uint32_t ESN;						//Encryption Sequence Number
+    uint32_t AI;						//Authentication Indicator 
+    uint32_t EAL;						//Embedded Authentication Length
+    uint32_t Payload_offset;
+    uint32_t Message_CRC;				//
+    uint8_t* payload;
+    uint32_t offset;
+	spartn_t* spartn_out;
+} raw_spartn_t;
+
+int decode_OCB_message(raw_spartn_t* spartn);
+int decode_HPAC_message(raw_spartn_t* spartn);
+int decode_GAD_message(raw_spartn_t* spartn);
+int decode_LPAC_message(raw_spartn_t* spartn);
+
+int input_spartn_data(raw_spartn_t* spartn, spartn_t* spartn_out, uint8_t data);
+
+void open_ocb_table_file(const char* filename);
+void open_hpac_table_file(const char* filename);
+void open_gad_table_file(const char* filename);
+void open_lpac_table_file(const char* filename);
+
+void close_ocb_table_file();
+void close_hpac_table_file();
+void close_gad_table_file();
+void close_lpac_table_file();
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // !CRC_H

@@ -11,7 +11,7 @@ extern "C" {
 #define TABLE_LOG
 
 #define LOG_DEBUG 1
-void log(int level, int tab, const char *format, ...);
+//void log(int level, int tab, const char *format, ...);
 void open_table_file(const char* filename);
 void close_table_file();
 void table_log(const char *format, ...);

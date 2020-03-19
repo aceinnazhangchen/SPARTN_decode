@@ -7,8 +7,13 @@ void log_hpac_title_to_table() {
 	table_log_ex(hpac_table_file,"%9s,%4s,%3s,%3s,%3s,%7s,%3s,%7s,%7s,%7s", "Time", "area", "NGp", "Tro", "Ion", "delay", "Tgp", "T00", "T01", "T10");
 }
 
-void open_hpac_table_file() {
-	open_table_file_ex(&hpac_table_file, "../HPAC_message.log");
+void open_hpac_table_file(const char* filename) {
+	if (filename) {
+		open_table_file_ex(&hpac_table_file, filename);
+	}
+	else {
+		open_table_file_ex(&hpac_table_file, "../HPAC_message.log");
+	}
 	log_hpac_title_to_table();
 }
 
@@ -16,7 +21,7 @@ void close_hpac_table_file() {
 	close_table_file_ex(&hpac_table_file);
 }
 
-void log_hpac_to_table(spartn_t* spartn, HPAC_t* hpac) {
+void log_hpac_to_table(raw_spartn_t* spartn, HPAC_t* hpac) {
 	int i,j;
 	char sys = ' ';
 	if (spartn->Subtype == 0) {
@@ -40,9 +45,10 @@ void log_hpac_to_table(spartn_t* spartn, HPAC_t* hpac) {
 			table_log_ex(hpac_table_file, "%30s %c%02d,%3d,%7.3f,%7.3f,%7.3f", "", sys,sat->PRN_ID, sat->SF056_Ionosphere_satellite_polynomial_block, sat->small_coefficient.SF057_C00, sat->small_coefficient.SF058_C01, sat->small_coefficient.SF058_C10);
 		}
 	}
+	table_log_ex(hpac_table_file, "==============================================================");
 }
 //Table 6.12 Area data block 
-void decode_area_data_block(spartn_t* spartn, HPAC_area_t* area, int tab) {
+void decode_area_data_block(raw_spartn_t* spartn, HPAC_area_t* area, int tab) {
 	uint8_t* payload = spartn->payload;
 	area->SF031_Area_ID = getbitu(payload, spartn->offset, 8);  spartn->offset += 8; log(LOG_DEBUG, tab, "SF031_Area_ID = %d", area->SF031_Area_ID);
 	area->SF039_Number_grid_points_present = getbitu(payload, spartn->offset, 7);  spartn->offset += 7; log(LOG_DEBUG, tab, "SF039_Number_grid_points_present = %d", area->SF039_Number_grid_points_present);
@@ -50,7 +56,7 @@ void decode_area_data_block(spartn_t* spartn, HPAC_area_t* area, int tab) {
 	area->SF040_Iono = getbitu(payload, spartn->offset, 2);  spartn->offset += 2; log(LOG_DEBUG, tab, "SF040_Iono = %d", area->SF040_Iono);
 }
 //Table 6.14 troposphere small coefficient block 
-void decode_troposphere_small_coefficient_block(spartn_t* spartn, HPAC_troposphere_t* troposphere, HPAC_troposphere_small_t* small_coefficient, int tab) {
+void decode_troposphere_small_coefficient_block(raw_spartn_t* spartn, HPAC_troposphere_t* troposphere, HPAC_troposphere_small_t* small_coefficient, int tab) {
 	uint8_t* payload = spartn->payload;
 	small_coefficient->SF045_T00 = getbitu(payload, spartn->offset, 7) * 0.004 - 0.252; spartn->offset += 7; log(LOG_DEBUG, tab, "SF045_T00 = %f", small_coefficient->SF045_T00);//0,1,2
 	if (troposphere->SF041_Troposphere_equation_type == 1 || troposphere->SF041_Troposphere_equation_type == 2) {
@@ -62,7 +68,7 @@ void decode_troposphere_small_coefficient_block(spartn_t* spartn, HPAC_troposphe
 	}
 }
 //Table 6.15 troposphere large coefficient block 
-void decode_troposphere_large_coefficient_block(spartn_t* spartn, HPAC_troposphere_t* troposphere, HPAC_troposphere_large_t* large_coefficient, int tab) {
+void decode_troposphere_large_coefficient_block(raw_spartn_t* spartn, HPAC_troposphere_t* troposphere, HPAC_troposphere_large_t* large_coefficient, int tab) {
 	uint8_t* payload = spartn->payload;
 	large_coefficient->SF048_T00 = getbitu(payload, spartn->offset, 9) * 0.004 - 1.020; spartn->offset += 9; log(LOG_DEBUG, tab, "SF048_T00 = %f", large_coefficient->SF048_T00);//0,1,2
 	if (troposphere->SF041_Troposphere_equation_type == 1 || troposphere->SF041_Troposphere_equation_type == 2) {
@@ -74,7 +80,7 @@ void decode_troposphere_large_coefficient_block(spartn_t* spartn, HPAC_troposphe
 	}
 }
 //Table 6.13 Troposphere data block
-void decode_troposphere_block(spartn_t* spartn, HPAC_area_t* area, HPAC_troposphere_t* troposphere, int tab) {
+void decode_troposphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_troposphere_t* troposphere, int tab) {
 	int i;
 	uint8_t* payload = spartn->payload;
 	//Troposphere polynomial coefficient block 
@@ -112,7 +118,7 @@ void decode_troposphere_block(spartn_t* spartn, HPAC_area_t* area, HPAC_troposph
 	}
 }
 //Table 6.18 ionosphere small coefficient block 
-void decode_ionosphere_small_coefficient_block(spartn_t* spartn, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_small_t* small_coefficient, int tab) {
+void decode_ionosphere_small_coefficient_block(raw_spartn_t* spartn, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_small_t* small_coefficient, int tab) {
 	uint8_t* payload = spartn->payload;
 	small_coefficient->SF057_C00 = getbitu(payload, spartn->offset, 12) * 0.04 - 81.88; spartn->offset += 12; log(LOG_DEBUG, tab, "SF057_C00 = %f", small_coefficient->SF057_C00);//0,1,2
 	if (ionosphere->SF054_Ionosphere_equation_type == 1 || ionosphere->SF054_Ionosphere_equation_type == 2) {
@@ -124,7 +130,7 @@ void decode_ionosphere_small_coefficient_block(spartn_t* spartn, HPAC_ionosphere
 	}
 }
 //Table 6.19 ionosphere large coefficient block 
-void decode_ionosphere_large_coefficient_block(spartn_t* spartn, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_large_t* large_coefficient, int tab) {
+void decode_ionosphere_large_coefficient_block(raw_spartn_t* spartn, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_large_t* large_coefficient, int tab) {
 	uint8_t* payload = spartn->payload;
 	large_coefficient->SF060_C00 = getbitu(payload, spartn->offset, 14) * 0.04 - 327.64; spartn->offset += 14; log(LOG_DEBUG, tab, "SF060_C00 = %f", large_coefficient->SF060_C00);//0,1,2
 	if (ionosphere->SF054_Ionosphere_equation_type == 1 || ionosphere->SF054_Ionosphere_equation_type == 2) {
@@ -136,7 +142,7 @@ void decode_ionosphere_large_coefficient_block(spartn_t* spartn, HPAC_ionosphere
 	}
 }
 //Table 6.17 Ionosphere satellite block
-void decode_ionosphere_satellite_block(spartn_t* spartn, HPAC_area_t* area, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_satellite_t* sat,int tab) {
+void decode_ionosphere_satellite_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_satellite_t* sat,int tab) {
 	int i;
 	uint8_t* payload = spartn->payload;
 	//Table 6.17 Ionosphere satellite block
@@ -186,7 +192,7 @@ void decode_ionosphere_satellite_block(spartn_t* spartn, HPAC_area_t* area, HPAC
 	}
 }
 //Table 6.16 Ionosphere block 
-void decode_ionosphere_block(spartn_t* spartn, HPAC_area_t* area, HPAC_ionosphere_t* ionosphere, int tab) {
+void decode_ionosphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_ionosphere_t* ionosphere, int tab) {
 	int i;
 	uint8_t* payload = spartn->payload;
 	if (area->SF040_Iono == 1 || area->SF040_Iono == 2) {
@@ -211,7 +217,7 @@ void decode_ionosphere_block(spartn_t* spartn, HPAC_area_t* area, HPAC_ionospher
 	}
 }
 //Table 6.11 Atmosphere block 
-void decode_atmosphere_block(spartn_t* spartn, HPAC_atmosphere_t* atmosphere,int tab) {
+void decode_atmosphere_block(raw_spartn_t* spartn, HPAC_atmosphere_t* atmosphere,int tab) {
 	uint8_t* payload = spartn->payload;
 	//Table 6.12 Area data block 
 	HPAC_area_t* area = &(atmosphere->area);
@@ -224,7 +230,7 @@ void decode_atmosphere_block(spartn_t* spartn, HPAC_atmosphere_t* atmosphere,int
 	decode_ionosphere_block(spartn, area, ionosphere, tab + 1);
 }
 //Table 6.10 Header block
-void decode_Header_block(spartn_t* spartn, HPAC_header_t* hearder,int tab) {
+void decode_Header_block(raw_spartn_t* spartn, HPAC_header_t* hearder,int tab) {
 	uint8_t* payload = spartn->payload;
 	hearder->SF005_SIOU = getbitu(payload, spartn->offset, 9); spartn->offset += 9; log(LOG_DEBUG, tab, "SF005_SIOU = %d", hearder->SF005_SIOU);
 	hearder->SF069_Reserved = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF069_Reserved = %d", hearder->SF069_Reserved);
@@ -232,22 +238,28 @@ void decode_Header_block(spartn_t* spartn, HPAC_header_t* hearder,int tab) {
 	hearder->SF030_Area_count = getbitu(payload, spartn->offset, 5) + 1;  spartn->offset += 5; log(LOG_DEBUG, tab, "SF030_Area_count = %d", hearder->SF030_Area_count);
 }
 // SM 1-0/1-1  HPAC messages 
-int decode_HPAC_message(spartn_t* spartn) {
+extern int decode_HPAC_message(raw_spartn_t* spartn)
+{
+	if (!spartn) return 0;
+	if (!spartn->spartn_out) return 0;
+	if (!spartn->spartn_out->hpac) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	HPAC_t hpac = { 0 };
-	HPAC_header_t* hpac_header = &(hpac.header);
+	HPAC_t* hpac = spartn->spartn_out->hpac;
+	memset(hpac, 0, sizeof(HPAC_t));
+	HPAC_header_t* hpac_header = &(hpac->header);
 	decode_Header_block(spartn, hpac_header, tab);
 	//Table 6.11 Atmosphere block (Repeated)
 	HPAC_atmosphere_t* atmosphere = NULL;
 	for (i = 0; i < hpac_header->SF030_Area_count; i++) {
-		atmosphere = &(hpac.atmosphere[i]);
+		atmosphere = &(hpac->atmosphere[i]);
 		decode_atmosphere_block(spartn, atmosphere, tab+1);
 		//break;
 	}
+	transform_spartn_ssr(spartn);
 	log(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	log(LOG_DEBUG, tab, "size of HPAC_t = %d ", sizeof(HPAC_t));
-	log_hpac_to_table(spartn, &hpac);
+	log_hpac_to_table(spartn, hpac);
 	return 1;
 }

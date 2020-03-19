@@ -7,8 +7,13 @@ void log_lpac_title_to_table() {
 	table_log_ex(lpac_table_file, "%9s,%5s,%5s,%5s,%5s,%5s,%5s,%5s,%7s,%12s", "Time", "area", "lat", "lon", "lat_c", "lon_c", "lat_s", "lon_s", "VTEC", "residual...");
 }
 
-void open_lpac_table_file() {
-	open_table_file_ex(&lpac_table_file, "../LPAC_message.log");
+void open_lpac_table_file(const char* filename) {
+	if (filename) {
+		open_table_file_ex(&lpac_table_file, filename);
+	}
+	else {
+		open_table_file_ex(&lpac_table_file, "../LPAC_message.log");
+	}
 	log_lpac_title_to_table();
 }
 
@@ -16,7 +21,7 @@ void close_lpac_table_file() {
 	close_table_file_ex(&lpac_table_file);
 }
 
-void log_lpac_to_table(spartn_t* spartn, LPAC_t* lpac) {
+void log_lpac_to_table(raw_spartn_t* spartn, LPAC_t* lpac) {
 	int i,j;
 	uint32_t time = spartn->GNSS_time_type;
 	for (i = 0; i < lpac->header.SF071_LPAC_area_count; i++) {
@@ -37,9 +42,10 @@ void log_lpac_to_table(spartn_t* spartn, LPAC_t* lpac) {
 			area->SF077_LPAC_area_latitude_grid_node_spacing, area->SF078_LPAC_area_longitude_grid_node_spacing,
 			area->SF080_Average_area_VTEC, VTEC_array);
 	}
+	table_log_ex(lpac_table_file, "");
 }
 //Table 6.25 LPAC grid node VTEC block
-void decode_LPAC_grid_node_VTEC_block(spartn_t* spartn, LPAC_VTEC_t* VTEC, int tab) {
+void decode_LPAC_grid_node_VTEC_block(raw_spartn_t* spartn, LPAC_VTEC_t* VTEC, int tab) {
 	uint8_t* payload = spartn->payload;
 	VTEC->SF055_VTEC_quality = getbitu(payload, spartn->offset, 4); spartn->offset += 4; log(LOG_DEBUG, tab, "SF055_VTEC_quality = %d", VTEC->SF055_VTEC_quality);
 	VTEC->SSF081_VTEC_size_indicator = getbitu(payload, spartn->offset, 1); spartn->offset += 1; log(LOG_DEBUG, tab, "SSF081_VTEC_size_indicator = %d", VTEC->SSF081_VTEC_size_indicator);
@@ -54,7 +60,7 @@ void decode_LPAC_grid_node_VTEC_block(spartn_t* spartn, LPAC_VTEC_t* VTEC, int t
 }
 
 //Table 6.23 LPAC area block
-void decode_LPAC_area_block(spartn_t* spartn, LPAC_area_t* area,int tab) {
+void decode_LPAC_area_block(raw_spartn_t* spartn, LPAC_area_t* area,int tab) {
 	int i;
 	uint8_t* payload = spartn->payload;
 	//Table 6.24 LPAC area data block 
@@ -79,7 +85,7 @@ void decode_LPAC_area_block(spartn_t* spartn, LPAC_area_t* area,int tab) {
 		}
 	}
 }
-void decode_LPAC_header_block(spartn_t* spartn, LPAC_header_t* header,int tab) {
+void decode_LPAC_header_block(raw_spartn_t* spartn, LPAC_header_t* header,int tab) {
 	uint8_t* payload = spartn->payload;
 	header->SF005_SIOU = getbitu(payload, spartn->offset, 9); spartn->offset += 9; log(LOG_DEBUG, tab, "SF005_SIOU = %d", header->SF005_SIOU);
 	header->SF069_Reserved = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF069_Reserved = %d", header->SF069_Reserved);
@@ -87,21 +93,27 @@ void decode_LPAC_header_block(spartn_t* spartn, LPAC_header_t* header,int tab) {
 	header->SF071_LPAC_area_count = getbitu(payload, spartn->offset, 2) + 1;  spartn->offset += 2; log(LOG_DEBUG, tab, "SF071_LPAC_area_count = %d", header->SF071_LPAC_area_count);
 }
 // SM 3-0 LPAC messages 
-int decode_LPAC_message(spartn_t* spartn) {
+extern int decode_LPAC_message(raw_spartn_t* spartn)
+{
+	if (!spartn) return 0;
+	if (!spartn->spartn_out) return 0;
+	if (!spartn->spartn_out->lpac) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	LPAC_t lpac = { 0 };
+	LPAC_t* lpac = spartn->spartn_out->lpac;
+	memset(lpac, 0, sizeof(LPAC_t));
 	//Table 6.22 Header block
-	LPAC_header_t* header = &(lpac.header);
+	LPAC_header_t* header = &(lpac->header);
 	decode_LPAC_header_block(spartn, header, tab);
 	//Table 6.23 LPAC area block (Repeated)
 	for (i = 0; i < header->SF071_LPAC_area_count; i++) {
-		LPAC_area_t* area = &(lpac.areas[i]);
+		LPAC_area_t* area = &(lpac->areas[i]);
 		decode_LPAC_area_block(spartn, area, tab+1);
 	}
+	transform_spartn_ssr(spartn);
 	log(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	log(LOG_DEBUG, tab, "size of LPAC_t = %d ", sizeof(LPAC_t));
-	log_lpac_to_table(spartn, &lpac);
+	log_lpac_to_table(spartn, lpac);
 	return 1;
 }
