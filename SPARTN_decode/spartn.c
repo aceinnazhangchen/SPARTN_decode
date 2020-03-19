@@ -12,6 +12,7 @@
 
 int read_obs_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int stnID);
 int read_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm);
+int read_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn);
 //int read_ssr_sapcorda(FILE *fRTCM, gnss_rtcm_t *rtcm);
 
 int decode_Dynamic_Key(raw_spartn_t* spartn) {
@@ -221,9 +222,8 @@ int main()
       satposs_sap(rov, vec_vrs, nav, ssr, EPHOPT_SSRSAP);
       compute_vector_data(&rov, vec_vrs);
 
-     memset(&obs_vrs,0, sizeof(obs_t));
-     int vrs_ret = gen_vobs_from_ssr(rov, ssr, gad, obs_vrs, vec_vrs, 10.0);
-
+      memset(&obs_vrs,0, sizeof(obs_t));
+      int vrs_ret = gen_vobs_from_ssr(rov, ssr, gad, obs_vrs, vec_vrs, 10.0);
 
     }
 

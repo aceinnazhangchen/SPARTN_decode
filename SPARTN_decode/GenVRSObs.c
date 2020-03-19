@@ -248,7 +248,6 @@ extern int gen_vobs_from_ssr(obs_t *obs_rov, sap_ssr_t *ssr, gad_ssr_t* gad, obs
 
        model_phw(obs_rov->time, obs_rov->data[i].sat,NULL,2, rs, rr, &phw);
 
-      
     }
     return 1;
 }
