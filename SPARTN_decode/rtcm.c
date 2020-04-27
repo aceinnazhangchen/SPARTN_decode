@@ -375,6 +375,7 @@ static int adjgpsweek(gtime_t *time, int week)
     //if (w<1560) w=1560; /* use 2009/12/1 if time is earlier than 2009/12/1 */
     return week + (w - week + 512) / 1024 * 1024;
 }
+
 /* adjust weekly rollover of bdt time ----------------------------------------*/
 static int adjbdtweek(gtime_t *time, int week)
 {
@@ -386,6 +387,7 @@ static int adjbdtweek(gtime_t *time, int week)
         w = 1; /* use 2006/1/1 if time is earlier than 2006/1/1 */
     return week + (w - week + 512) / 1024 * 1024;
 }
+
 /* adjust daily rollover of glonass time -------------------------------------*/
 void adjday_glot(gtime_t *time, double tod)
 {
@@ -1128,6 +1130,7 @@ extern double satwavelen(int sat, int frq)
     }
     return 0.0;
 }
+
 
 /* obs type string to obs code -------------------------------------------------
 * convert obs code type string to obs code
@@ -3449,7 +3452,7 @@ static int decode_type1230(rtcm_t *rtcm)
     trace(2, "rtcm3 1230: not supported message\n");
     return 0;
 }
-#ifdef _USE_PPP_
+//#ifdef _USE_PPP_
 /* decode ssr 1,4 message header ---------------------------------------------*/
 static int decode_ssr1_head(rtcm_t *rtcm, int sys, int *sync, int *iod,
                             double *udint, int *refd, int *hsize)
@@ -3848,69 +3851,101 @@ static int decode_ssr3(rtcm_t *rtcm, int sys, nav_t *nav, obs_t *obs)
         {
             if (nav->ssr[loc].sat == sat)
             {
-                nav->ssr[loc].t0[4] = ssr.t0[4];
+                nav->ssr[loc].t0[4]  = ssr.t0[4];
                 nav->ssr[loc].udi[4] = ssr.udi[4];
                 nav->ssr[loc].iod[4] = ssr.iod[4];
-                //   for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
+                for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
                 break;
             }
         }
-
         if (loc < nav->ns)
         {
-            for (k = 0; k < obs->n; k++)
-            {
-                if (obs->data[k].sat == sat)
-                {
-                    nav->ssr[loc].t0[4] = ssr.t0[4];
-                    nav->ssr[loc].udi[4] = ssr.udi[4];
-                    nav->ssr[loc].iod[4] = ssr.iod[4];
-                    //       for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
-                    break;
-                }
-            }
+            //nav->ssr[loc] = ssr;
+            nav->ssr[loc].t0[4] = ssr.t0[4];
+            nav->ssr[loc].udi[4] = ssr.udi[4];
+            nav->ssr[loc].iod[4] = ssr.iod[4];
+            for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
         }
-        if (loc == nav->ns)
+        else if (loc == nav->ns && loc < MAXSSR)
         {
-            if (loc < MAXSSR)
-            {
-                for (k = 0; k < obs->n; k++)
-                {
-                    if (obs->data[k].sat == sat)
-                    {
-                        nav->ssr[nav->ns] = ssr;
-                        ++nav->ns;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (j = 0; j < nav->ns; ++j)
-                {
-                    int idx = -1;
-                    for (k = 0; k < obs->n; k++)
-                    {
-                        if (obs->data[k].sat == nav->ssr[j].sat)
-                        {
-                            idx = k;
-                            break;
-                        }
-                    }
-                    if (idx == -1)
-                    {
-                        for (k = 0; k < obs->n; k++)
-                        {
-                            if (obs->data[k].sat == sat)
-                            {
-                                nav->ssr[j] = ssr;
-                                return sync ? 0 : 10;
-                            }
-                        }
-                    }
-                }
-            }
+            //nav->ssr[nav->ns] = ssr;
+            nav->ssr[nav->ns].t0[4] = ssr.t0[4];
+            nav->ssr[nav->ns].udi[4] = ssr.udi[4];
+            nav->ssr[nav->ns].iod[4] = ssr.iod[4];
+            for (k = 0; k < NFREQ; k++)   nav->ssr[nav->ns].cbias[k] = ssr.cbias[k];
+            ++nav->ns;
         }
+
+
+
+
+        //for (loc = 0; loc < nav->ns; ++loc)
+        //{
+        //    if (nav->ssr[loc].sat == sat)
+        //    {
+        //        nav->ssr[loc].t0[4] = ssr.t0[4];
+        //        nav->ssr[loc].udi[4] = ssr.udi[4];
+        //        nav->ssr[loc].iod[4] = ssr.iod[4];
+        //        for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
+        //        break;
+        //    }
+        //}
+
+        //if (loc < nav->ns)
+        //{
+        //    for (k = 0; k < obs->n; k++)
+        //    {
+        //        if (obs->data[k].sat == sat)
+        //        {
+        //            nav->ssr[loc].t0[4] = ssr.t0[4];
+        //            nav->ssr[loc].udi[4] = ssr.udi[4];
+        //            nav->ssr[loc].iod[4] = ssr.iod[4];
+        //            for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
+        //            break;
+        //        }
+        //    }
+        //}
+        //if (loc == nav->ns)
+        //{
+        //    if (loc < MAXSSR)
+        //    {
+        //        for (k = 0; k < obs->n; k++)
+        //        {
+        //            if (obs->data[k].sat == sat)
+        //            {
+        //                nav->ssr[nav->ns] = ssr;
+        //                ++nav->ns;
+        //                break;
+        //            }
+        //        }
+        //    }
+        //    else
+        //    {
+        //        for (j = 0; j < nav->ns; ++j)
+        //        {
+        //            int idx = -1;
+        //            for (k = 0; k < obs->n; k++)
+        //            {
+        //                if (obs->data[k].sat == nav->ssr[j].sat)
+        //                {
+        //                    idx = k;
+        //                    break;
+        //                }
+        //            }
+        //            if (idx == -1)
+        //            {
+        //                for (k = 0; k < obs->n; k++)
+        //                {
+        //                    if (obs->data[k].sat == sat)
+        //                    {
+        //                        nav->ssr[j] = ssr;
+        //                        return sync ? 0 : 10;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
     }
     return sync ? 0 : 10;
 }
@@ -4003,82 +4038,83 @@ static int decode_ssr4(rtcm_t *rtcm, int sys, nav_t *nav, obs_t *obs)
             continue;
         }
         memset(&ssr, 0, sizeof(ssr_t));
-        ssr.sat = sat;
-        ssr.t0[0] = ssr.t0[1] = rtcm->time;
+        ssr.sat    = sat;
+        ssr.t0[0]  = ssr.t0[1] = rtcm->time;
         ssr.udi[0] = ssr.udi[1] = udint;
         ssr.iod[0] = ssr.iod[1] = iod;
-        ssr.iode = iode;
+        ssr.iode   = iode;
         ssr.iodcrc = iodcrc;
-        ssr.refd = refd;
+        ssr.refd   = refd;
 
         for (k = 0; k < 3; k++)
         {
-            ssr.deph[k] = deph[k];
+            ssr.deph[k]  = deph[k];
             ssr.ddeph[k] = ddeph[k];
-            ssr.dclk[k] = dclk[k];
+            ssr.dclk[k]  = dclk[k];
         }
         ssr.update = 1;
+        nav->ssr[nav->ns] = ssr;
+        nav->ns++;
+    //    for (loc = 0; loc < nav->ns; ++loc)
+    //    {
+    //        if (nav->ssr[loc].sat == sat)
+    //        {
+    //            break;
+    //        }
+    //    }
 
-        for (loc = 0; loc < nav->ns; ++loc)
-        {
-            if (nav->ssr[loc].sat == sat)
-            {
-                break;
-            }
-        }
-
-        if (loc < nav->ns)
-        {
-            for (k = 0; k < obs->n; k++)
-            {
-                if (obs->data[k].sat == sat)
-                {
-                    nav->ssr[loc] = ssr;
-                    break;
-                }
-            }
-        }
-        else if (loc == nav->ns)
-        {
-            if (loc < MAXSSR)
-            {
-                for (k = 0; k < obs->n; k++)
-                {
-                    if (obs->data[k].sat == sat)
-                    {
-                        nav->ssr[nav->ns] = ssr;
-                        ++nav->ns;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (j = 0; j < nav->ns; ++j)
-                {
-                    int idx = -1;
-                    for (k = 0; k < obs->n; k++)
-                    {
-                        if (obs->data[k].sat == nav->ssr[j].sat)
-                        {
-                            idx = k;
-                            break;
-                        }
-                    }
-                    if (idx == -1)
-                    {
-                        for (k = 0; k < obs->n; k++)
-                        {
-                            if (obs->data[k].sat == sat)
-                            {
-                                nav->ssr[j] = ssr;
-                                return sync ? 0 : 10;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    //    if (loc < nav->ns)
+    //    {
+    //        for (k = 0; k < obs->n; k++)
+    //        {
+    //            if (obs->data[k].sat == sat)
+    //            {
+    //                nav->ssr[loc] = ssr;
+    //                break;
+    //            }
+    //        }
+    //    }
+    //    else if (loc == nav->ns)
+    //    {
+    //        if (loc < MAXSSR)
+    //        {
+    //            for (k = 0; k < obs->n; k++)
+    //            {
+    //                if (obs->data[k].sat == sat)
+    //                {
+    //                    nav->ssr[nav->ns] = ssr;
+    //                    ++nav->ns;
+    //                    break;
+    //                }
+    //            }
+    //        }
+    //        else
+    //        {
+    //            for (j = 0; j < nav->ns; ++j)
+    //            {
+    //                int idx = -1;
+    //                for (k = 0; k < obs->n; k++)
+    //                {
+    //                    if (obs->data[k].sat == nav->ssr[j].sat)
+    //                    {
+    //                        idx = k;
+    //                        break;
+    //                    }
+    //                }
+    //                if (idx == -1)
+    //                {
+    //                    for (k = 0; k < obs->n; k++)
+    //                    {
+    //                        if (obs->data[k].sat == sat)
+    //                        {
+    //                            nav->ssr[j] = ssr;
+    //                            return sync ? 0 : 10;
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
     }
     return sync ? 0 : 10;
 }
@@ -4157,7 +4193,7 @@ static int decode_ssr5(rtcm_t *rtcm, int sys, nav_t *nav)
         {
             nav->ssr[loc] = ssr;
         }
-        else if (loc == nav->ns && loc < MAXEPH)
+        else if (loc == nav->ns && loc < MAXSSR)
         {
             nav->ssr[nav->ns] = ssr;
             ++nav->ns;
@@ -4239,7 +4275,7 @@ static int decode_ssr6(rtcm_t *rtcm, int sys, nav_t *nav)
         {
             nav->ssr[loc] = ssr;
         }
-        else if (loc == nav->ns && loc < MAXEPH)
+        else if (loc == nav->ns && loc < MAXSSR)
         {
             nav->ssr[nav->ns] = ssr;
             ++nav->ns;
@@ -4424,7 +4460,7 @@ static int decode_ssr7(rtcm_t *rtcm, int sys, nav_t *nav)
     }
     return 20;
 }
-#endif
+//#endif
 
 extern void set_approximate_time(int year, int doy, rtcm_t *rtcm)
 {
@@ -4737,92 +4773,92 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1230:
         ret = decode_type1230(rtcm);
         break; /* not supported */
-#ifdef _USE_PPP_
-    case 1240:
-        ret = decode_ssr1(rtcm, _SYS_GAL_, nav, obs);
-        break;
-    case 1241:
-        ret = decode_ssr2(rtcm, _SYS_GAL_, nav, obs);
-        break;
-    case 1242:
-        ret = decode_ssr3(rtcm, _SYS_GAL_, nav, obs);
-        break;
-    case 1243:
-        ret = decode_ssr4(rtcm, _SYS_GAL_, nav, obs);
-        break;
-    case 1244:
-        ret = decode_ssr5(rtcm, _SYS_GAL_, nav);
-        break;
-    case 1245:
-        ret = decode_ssr6(rtcm, _SYS_GAL_, nav);
-        break;
-    case 1246:
-        ret = decode_ssr1(rtcm, _SYS_QZS_, nav, obs);
-        break;
-    case 1247:
-        ret = decode_ssr2(rtcm, _SYS_QZS_, nav, obs);
-        break;
-    case 1248:
-        ret = decode_ssr3(rtcm, _SYS_QZS_, nav, obs);
-        break;
-    case 1249:
-        ret = decode_ssr4(rtcm, _SYS_QZS_, nav, obs);
-        break;
-    case 1250:
-        ret = decode_ssr5(rtcm, _SYS_QZS_, nav);
-        break;
-    case 1251:
-        ret = decode_ssr6(rtcm, _SYS_QZS_, nav);
-        break;
-    case 1252:
-        ret = decode_ssr1(rtcm, _SYS_SBS_, nav, obs);
-        break;
-    case 1253:
-        ret = decode_ssr2(rtcm, _SYS_SBS_, nav, obs);
-        break;
-    case 1254:
-        ret = decode_ssr3(rtcm, _SYS_SBS_, nav, obs);
-        break;
-    case 1255:
-        ret = decode_ssr4(rtcm, _SYS_SBS_, nav, obs);
-        break;
-    case 1256:
-        ret = decode_ssr5(rtcm, _SYS_SBS_, nav);
-        break;
-    case 1257:
-        ret = decode_ssr6(rtcm, _SYS_SBS_, nav);
-        break;
-    case 1258:
-        ret = decode_ssr1(rtcm, _SYS_BDS_, nav, obs);
-        break;
-    case 1259:
-        ret = decode_ssr2(rtcm, _SYS_BDS_, nav, obs);
-        break;
-    case 1260:
-        ret = decode_ssr3(rtcm, _SYS_BDS_, nav, obs);
-        break;
-    case 1261:
-        ret = decode_ssr4(rtcm, _SYS_BDS_, nav, obs);
-        break;
-    case 1262:
-        ret = decode_ssr5(rtcm, _SYS_BDS_, nav);
-        break;
-    case 1263:
-        ret = decode_ssr6(rtcm, _SYS_BDS_, nav);
-        break;
-    case 11:
-        ret = decode_ssr7(rtcm, _SYS_GLO_, nav);
-        break; /* tentative */
-    case 12:
-        ret = decode_ssr7(rtcm, _SYS_GAL_, nav);
-        break; /* tentative */
-    case 13:
-        ret = decode_ssr7(rtcm, _SYS_QZS_, nav);
-        break; /* tentative */
-    case 14:
-        ret = decode_ssr7(rtcm, _SYS_BDS_, nav);
-        break; /* tentative */
-#endif
+//#ifdef _USE_PPP_
+    //case 1240:
+    //    ret = decode_ssr1(rtcm, _SYS_GAL_, nav, obs);
+    //    break;
+    //case 1241:
+    //    ret = decode_ssr2(rtcm, _SYS_GAL_, nav, obs);
+    //    break;
+    //case 1242:
+    //    ret = decode_ssr3(rtcm, _SYS_GAL_, nav, obs);
+    //    break;
+    //case 1243:
+    //    ret = decode_ssr4(rtcm, _SYS_GAL_, nav, obs);
+    //    break;
+    //case 1244:
+    //    ret = decode_ssr5(rtcm, _SYS_GAL_, nav);
+    //    break;
+    //case 1245:
+    //    ret = decode_ssr6(rtcm, _SYS_GAL_, nav);
+    //    break;
+    //case 1246:
+    //    ret = decode_ssr1(rtcm, _SYS_QZS_, nav, obs);
+    //    break;
+    //case 1247:
+    //    ret = decode_ssr2(rtcm, _SYS_QZS_, nav, obs);
+    //    break;
+    //case 1248:
+    //    ret = decode_ssr3(rtcm, _SYS_QZS_, nav, obs);
+    //    break;
+    //case 1249:
+    //    ret = decode_ssr4(rtcm, _SYS_QZS_, nav, obs);
+    //    break;
+    //case 1250:
+    //    ret = decode_ssr5(rtcm, _SYS_QZS_, nav);
+    //    break;
+    //case 1251:
+    //    ret = decode_ssr6(rtcm, _SYS_QZS_, nav);
+    //    break;
+    //case 1252:
+    //    ret = decode_ssr1(rtcm, _SYS_SBS_, nav, obs);
+    //    break;
+    //case 1253:
+    //    ret = decode_ssr2(rtcm, _SYS_SBS_, nav, obs);
+    //    break;
+    //case 1254:
+    //    ret = decode_ssr3(rtcm, _SYS_SBS_, nav, obs);
+    //    break;
+    //case 1255:
+    //    ret = decode_ssr4(rtcm, _SYS_SBS_, nav, obs);
+    //    break;
+    //case 1256:
+    //    ret = decode_ssr5(rtcm, _SYS_SBS_, nav);
+    //    break;
+    //case 1257:
+    //    ret = decode_ssr6(rtcm, _SYS_SBS_, nav);
+    //    break;
+    //case 1258:
+    //    ret = decode_ssr1(rtcm, _SYS_BDS_, nav, obs);
+    //    break;
+    //case 1259:
+    //    ret = decode_ssr2(rtcm, _SYS_BDS_, nav, obs);
+    //    break;
+    //case 1260:
+    //    ret = decode_ssr3(rtcm, _SYS_BDS_, nav, obs);
+    //    break;
+    //case 1261:
+    //    ret = decode_ssr4(rtcm, _SYS_BDS_, nav, obs);
+    //    break;
+    //case 1262:
+    //    ret = decode_ssr5(rtcm, _SYS_BDS_, nav);
+    //    break;
+    //case 1263:
+    //    ret = decode_ssr6(rtcm, _SYS_BDS_, nav);
+    //    break;
+    //case 11:
+    //    ret = decode_ssr7(rtcm, _SYS_GLO_, nav);
+    //    break; /* tentative */
+    //case 12:
+    //    ret = decode_ssr7(rtcm, _SYS_GAL_, nav);
+    //    break; /* tentative */
+    //case 13:
+    //    ret = decode_ssr7(rtcm, _SYS_QZS_, nav);
+    //    break; /* tentative */
+    //case 14:
+    //    ret = decode_ssr7(rtcm, _SYS_BDS_, nav);
+    //    break; /* tentative */
+//#endif
     default:
         ret = 0;
     }

@@ -15,7 +15,9 @@ extern "C" {
 /* phase windup model --------------------------------------------------------*/
 extern int model_phw(gtime_t time, int sat, const char *type, int opt, const double *rs, const double *rr, double *phw);
 
-extern void tidedisp(gtime_t tutc, const double *rr, int opt, const erp_t *erp, const double *odisp, double *dr);
+extern int model_phw_bnc(gtime_t time, int sat, const char *type, int opt, const double *rs, const double *rr, double *phw);
+
+extern void tidedisp(gtime_t tutc, const double *rr, int opt, const double *odisp, double *dr);
 
 #ifdef __cplusplus
 }

@@ -211,10 +211,10 @@ extern "C" {
 #define MAXEPH 100
 #define MAXEPH_R 24
 #else
-#define MAXEPH 55
-#define MAXEPH_R 15
+#define MAXEPH   55
+#define MAXEPH_R 24
 #endif
-#define MAXSSR 24
+#define MAXSSR 55
 
 #define MAXANT 2
 
@@ -297,10 +297,11 @@ typedef struct {        /* navigation data type */
 	unsigned int n_bds;
 	unsigned int n_qzs;
 	unsigned int ns;
+    unsigned int nsys[2];
     eph_t eph[MAXEPH];         /* GPS/QZS/GAL ephemeris */
-    geph_t geph[MAXEPH_R];       /* GLONASS ephemeris */  
+    geph_t geph[MAXEPH_R];     /* GLONASS ephemeris */  
     unsigned char ephsat;
-    //sap_ssr_t ssr[MAXSSR];
+    ssr_t ssr[MAXSSR];        /* output of ssr corrections */
 } nav_t;
 
 typedef struct {        /* observation data */

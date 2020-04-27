@@ -32,21 +32,18 @@
 * double  *satellitePosition      I  m    Position of the satellite
 * Returned value (double)         O  m    Gravitational delay correction
 *****************************************************************************/
-extern double gravitationalDelayCorrection(const int sys, const double *receiverPosition,
-    const double *satellitePosition)
+extern double ShapiroCorrection(const int sys, const double *rcvPos,const double *satPos)
 {
     double	receiverModule;
     double	satelliteModule;
     double	distance;
     double  MU = MU_GPS;
 
-    receiverModule = sqrt(receiverPosition[0] * receiverPosition[0] + receiverPosition[1] * receiverPosition[1] +
-        receiverPosition[2] * receiverPosition[2]);
-    satelliteModule = sqrt(satellitePosition[0] * satellitePosition[0] + satellitePosition[1] * satellitePosition[1] +
-        satellitePosition[2] * satellitePosition[2]);
-    distance = sqrt((satellitePosition[0] - receiverPosition[0])*(satellitePosition[0] - receiverPosition[0]) +
-        (satellitePosition[1] - receiverPosition[1])*(satellitePosition[1] - receiverPosition[1]) +
-        (satellitePosition[2] - receiverPosition[2])*(satellitePosition[2] - receiverPosition[2]));
+    receiverModule  = sqrt(rcvPos[0] * rcvPos[0] + rcvPos[1] * rcvPos[1] + rcvPos[2] * rcvPos[2]);
+    satelliteModule = sqrt(satPos[0] * satPos[0] + satPos[1] * satPos[1] + satPos[2] * satPos[2]);
+    distance        = sqrt((satPos[0] - rcvPos[0])*(satPos[0] - rcvPos[0]) +
+                           (satPos[1] - rcvPos[1])*(satPos[1] - rcvPos[1]) +
+                           (satPos[2] - rcvPos[2])*(satPos[2] - rcvPos[2]));
 
     switch (sys)
     {
@@ -69,27 +66,55 @@ extern double gravitationalDelayCorrection(const int sys, const double *receiver
     return 2.0*MU / (CLIGHT*CLIGHT)*log((satelliteModule + receiverModule + distance) / (satelliteModule + receiverModule - distance));
 }
 
-void find_nearest_gridpoints_ionocoef(double *blh, int sat, gad_ssr_t *gad, double *gpt_idx)
+
+double tecu2meter(int sat, int frq)
+{
+    double tecu2m;
+    double w = satwavelen(sat, frq);
+    return 40.3*1.0e16 / SQR(CLIGHT / w);
+}
+
+void find_nearest_gridpoints_ionocoef(double *blh, int sat, gad_ssr_t *gad, int *areaId, int *gpt_idx)
 {
     int i, j, k, l, lon_nc, lat_nc, lon_sp, lat_sp, dlon, dlat;
     double blh_ref[3] = { 0 }, ned[3] = { 0 }, dist2D = 0.0, MinDist2D=1.0e8;
-
+    int gad_areaId = -1;
     gpt_idx[0] = -1;
     gpt_idx[3] = -1;
     gpt_idx[4] = -1;
+
     for (j = 0; j < RAP_NUM; j++)
     {
-        blh_ref[1] = blh[2];
+        gad_areaId = gad[j].areaId;
+        int aid = -1;
+        for (i = 0; i < RAP_NUM; i++)
+        {
+            if (areaId[i] == 0)
+            {
+                break;
+            }
+            else if(areaId[i] == gad_areaId)
+            {
+                aid = i;
+                break;
+            }
+        }
+        if (aid == -1) continue;
+
+        //printf("gad: sat=%3i,%3i,%7.2f,%7.2f,%7.2f,%7.2f\n", 
+        //    sat,gad[j].areaId, gad[j].rap_lat, gad[j].rap_lon, gad[j].rap_lat- gad[j].nc_lat*gad[j].spa_lat, gad[j].rap_lon+ gad[j].nc_lon*gad[j].spa_lon);
+
+        blh_ref[2] = blh[2];
         lat_nc = gad[j].nc_lat;
         lon_nc = gad[j].nc_lon;
         for (k = 0; k < lat_nc; k++)
         {
             for (l = 0; l < lon_nc; l++)
             {
-                blh_ref[0] = gad[j].rap_lat * D2R + k * gad[j].spa_lat;
-                blh_ref[1] = gad[j].rap_lon * D2R + l * gad[j].spa_lon;
+                blh_ref[0] = (gad[j].rap_lat - k * gad[j].spa_lat)* D2R;
+                blh_ref[1] = (gad[j].rap_lon + l * gad[j].spa_lon)* D2R;
                 blhdiff(blh, blh_ref, ned);
-                dist2D = sqrt(ned[0] * ned[0] + ned[1] * ned[1]);
+                dist2D = sqrt(ned[0] * ned[0] + ned[1] * ned[1])/1.0e3;
                 if (dist2D <= MinDist2D)
                 {
                     gpt_idx[0] = j;
@@ -123,14 +148,15 @@ void dist_inv_unit_weighting(double *blh, double *gpt_bl, double *wdi)
 }
 
 
-void high_prcision_slant_atm_polynomial(gtime_t time, double *blh, int sat, double *azel, sap_ssr_t *ssr, gad_ssr_t *gad, int *gpt_idx, double *stec, double *stro)
+void high_prcision_slant_atm_polynomial(gtime_t time, double *blh, int sat, sap_ssr_t *ssr, gad_ssr_t *gad, double *azel, int *gpt_idx, double *stec, double *stro)
 {
     int i, j, satidx=-1;
+    int areaId;
     double icoef[12]  = { 0.0 };
     double tcoef[12] = { 0.0 };
     double gpt_bl[8] = { 0.0 };
     int    gpt_pos[8] = { 0 };
-    double lon_sp = 0.0, lat_sp = 0.0, rap_lon=0.0, rap_lat=0.0;
+    double lon_sp = 0.0, lat_sp = 0.0, rap_lon=0.0, rap_lat=0.0,acp_lon=0.0, acp_lat=0.0;
     double Ip[4] = { 0.0 }, Tp[4] = { 0.0 };
     double wdi[4] = { 0.0 };
     double m_h, m_w, Th = 0.0, Tw = 0.0;;
@@ -144,10 +170,29 @@ void high_prcision_slant_atm_polynomial(gtime_t time, double *blh, int sat, doub
             break;
         }
     }
+    int aid = -1;
+    areaId = gad[gpt_idx[0]].areaId;
+    for (i = 0; i < RAP_NUM; i++)
+    {
+        if (ssr[satidx].areaId[i] == 0)
+        {
+            break;
+        }
+        else if (ssr[satidx].areaId[i] == areaId)
+        {
+            aid = i;
+            break;
+        }
+    }
+    if (aid == -1)  return;
+
     lat_sp  = gad[gpt_idx[0]].spa_lat;
     lon_sp  = gad[gpt_idx[0]].spa_lon;
     rap_lat = gad[gpt_idx[0]].rap_lat;
     rap_lon = gad[gpt_idx[0]].rap_lon;
+
+    acp_lat = gad[gpt_idx[0]].rap_lat + gad[gpt_idx[0]].spa_lat*gad[gpt_idx[0]].nc_lat/2.0;
+    acp_lon = gad[gpt_idx[0]].rap_lon + gad[gpt_idx[0]].spa_lon*gad[gpt_idx[0]].nc_lon/2.0;
 
     if (gpt_idx[3] * gpt_idx[4] > 0)
     {
@@ -195,60 +240,223 @@ void high_prcision_slant_atm_polynomial(gtime_t time, double *blh, int sat, doub
 
     dist_inv_unit_weighting(blh, gpt_bl, wdi);
 
+    icoef[0] = ssr[satidx].stec_coef[0 + aid * 3];
+    icoef[1] = ssr[satidx].stec_coef[1 + aid * 3];
+    icoef[2] = ssr[satidx].stec_coef[2 + aid * 3];
+    tcoef[0] = ssr[satidx].tro_coef[0 + aid * 3];
+    tcoef[1] = ssr[satidx].tro_coef[1 + aid * 3];
+    tcoef[2] = ssr[satidx].tro_coef[2 + aid * 3];
+
+    //printf("atmcor: sat=%3i,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", sat, icoef[0], icoef[1], icoef[2], tcoef[0], tcoef[1], tcoef[2]);
     *stec = 0.0;
     *stro = 0.0;
     for (i = 0; i < 4; i++)
     {
-        icoef[i * 3]     = ssr[satidx].stec_coef[0 + gpt_idx[0] * 3];
-        icoef[i * 3 + 1] = ssr[satidx].stec_coef[1 + gpt_idx[0] * 3];
-        icoef[i * 3 + 2] = ssr[satidx].stec_coef[2 + gpt_idx[0] * 3];
-        tcoef[i * 3]     = ssr[satidx].tro_coef [0 + gpt_idx[0] * 3];
-        tcoef[i * 3 + 1] = ssr[satidx].tro_coef [1 + gpt_idx[0] * 3];
-        tcoef[i * 3 + 2] = ssr[satidx].tro_coef [2 + gpt_idx[0] * 3];
-
-        Ip[i] = icoef[i * 3] + icoef[i * 3 + 1] * (gpt_bl[i * 2]- rap_lat) + icoef[i * 3 + 2] * (gpt_bl[i * 2 + 1]-rap_lon);
-        Tp[i] = tcoef[i * 3] + tcoef[i * 3 + 1] * (gpt_bl[i * 2]- rap_lat) + tcoef[i * 3 + 2] * (gpt_bl[i * 2 + 1]-rap_lon);
-
+        Ip[i] = icoef[0] + icoef[1] * (gpt_bl[i * 2]- acp_lat) + icoef[2] * (gpt_bl[i * 2 + 1]- acp_lon);
+        Tp[i] = tcoef[0] + tcoef[1] * (gpt_bl[i * 2]- acp_lat) + tcoef[2] * (gpt_bl[i * 2 + 1]- acp_lon);
         *stec += wdi[i] * Ip[i];
         Tw    += wdi[i] * Tp[i];
+        //printf("atmcor: sat=%3i,%.3f,%.3f\n", sat, Ip[i], Tp[i]);
     }
-
     Th = ssr[satidx].ave_htd;
     m_h=tropmapf(time, blh, azel, &m_w);
     *stro = m_h*Th + m_w * Tw;
+    //printf("atmcor: sat=%3i,%.3f,%.3f\n", sat, *stec, *stro);
 }
 
 void compute_high_prcision_atm_corr(int sat, obs_t *obs_vrs, sap_ssr_t *ssr, gad_ssr_t *gad, double *azel, double maskElev, double *stec, double *stro)
 {
+    int i,j;
     double blh[3] = { 0 };
     int gpt_idx[5] = { 0 };
-    ecef2pos(obs_vrs, blh);
-    find_nearest_gridpoints_ionocoef(blh, sat, gad, gpt_idx);
-    high_prcision_slant_atm_polynomial(obs_vrs->time, blh, sat, ssr, gad, azel, gpt_idx, &stec, &stro);
+    ecef2pos(obs_vrs->pos, blh);
+    int loc = -1;
+    for (i = 0; i < SSR_NUM; i++)
+    {
+        ssr[i].sat = ssr[i].prn + ssr[i].sys * 40;
+        if (ssr[i].sat == sat)
+        {
+            loc = i;
+            break;
+        }
+    }
+    if (loc == -1) return;
+
+    find_nearest_gridpoints_ionocoef(blh, sat, gad, ssr[loc].areaId, gpt_idx);
+
+    //printf("gad: sat=%3i,%3i,", sat, gad[gpt_idx[0]].areaId);
+    //int nlat = gpt_idx[1];
+    //int nlon = gpt_idx[2];
+    //double arp_lat = gad[gpt_idx[0]].rap_lat - nlat * gad[gpt_idx[0]].spa_lat;
+    //double arp_lon = gad[gpt_idx[0]].rap_lon + nlon * gad[gpt_idx[0]].spa_lon;
+    //printf("%6.2f, %6.2f,", arp_lat,                                        arp_lon);
+    //printf("%6.2f, %6.2f,", arp_lat + gpt_idx[3] * gad[gpt_idx[0]].spa_lat, arp_lon);
+    //printf("%6.2f, %6.2f,", arp_lat,                                        arp_lon + gpt_idx[4] * gad[gpt_idx[0]].spa_lon);
+    //printf("%6.2f, %6.2f\n",arp_lat + gpt_idx[3] * gad[gpt_idx[0]].spa_lat, arp_lon + gpt_idx[4] * gad[gpt_idx[0]].spa_lon);
+    
+    high_prcision_slant_atm_polynomial(obs_vrs->time, blh, sat, ssr, gad, azel, gpt_idx, stec, stro);
 }
 
 
 extern int gen_vobs_from_ssr(obs_t *obs_rov, sap_ssr_t *ssr, gad_ssr_t* gad, obs_t *obs_vrs, vec_t *vec_vrs, double maskElev)
 {
-    int i;
+    int i,j,prn;
+    double cbias[2] = { 0.0 }, pbias[2] = { 0.0 }, dr[3] = { 0.0 };
     double P[2] = { 0.0 }, L[2] = { 0.0 };
-    double rs[6] = { 0.0 }, rr[6] = { 0.0 }, phw = 0.0;
+    double rs[6] = { 0.0 }, rr[6] = { 0.0 }, phw = 0.0, phw2 = 0.0;
     double stec = 0.0, strop = 0.0;
-    double dr[3] = { 0.0 };
+    double tecu2m1 = 0.0, tecu2m2 = 0.0;
+    double w1 = 0.0, w2 = 0.0;
+    double grav_delay = 0.0;
+    double soltide = 0.0;
 
-    obs_vrs->n    = obs_rov->n;
-    obs_vrs->time = obs_rov->time;
-    memcpy(obs_vrs->pos, obs_rov->pos, sizeof(double) * 3);
+    /* earth tides correction */
+    tidedisp(obs_rov->time, &obs_rov->pos, 1, NULL, dr);
 
-    tidedisp(obs_rov->time, &obs_vrs->pos, 1, NULL, NULL, dr);
-
+    obs_vrs->time =  obs_rov->time;
+    obs_vrs->n = obs_rov->n;
     for (i = 0; i < obs_rov->n; i++)
     {
-       compute_high_prcision_atm_corr(obs_rov->data[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
+       if (norm(vec_vrs[i].rs, 3) < 0.01) continue;
 
-       model_phw(obs_rov->time, obs_rov->data[i].sat,NULL,2, rs, rr, &phw);
+       int sys = satsys(obs_rov->data[i].sat, &prn);
+       obs_vrs->data[i].sat = obs_rov->data[i].sat;
+       obs_vrs->data[i].sys = sys;
+       obs_vrs->data[i].prn = prn;
 
+       soltide = vec_vrs[i].e[0] * dr[0]+ vec_vrs[i].e[1] * dr[1]+ vec_vrs[i].e[2] * dr[2];
+
+       /* phase windup model */
+       //model_phw(obs_rov->time, obs_rov->data[i].sat, NULL, 2, vec_vrs[i].rs, obs_vrs->pos, &phw);
+       model_phw_bnc(obs_rov->time, obs_rov->data[i].sat, NULL, 2, vec_vrs[i].rs, obs_vrs->pos, &phw);
+
+       /* gravitational delay correction */
+       grav_delay = ShapiroCorrection(sys, obs_vrs->pos, vec_vrs[i].rs);
+
+       /* slant tropospheric and ionospheric delay from HPAC*/
+       compute_high_prcision_atm_corr(obs_vrs->data[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
+       tecu2m1 = tecu2meter(obs_vrs->data[i].sat, 0);
+       tecu2m2 = tecu2meter(obs_vrs->data[i].sat, 1);
+
+       if (stec == 0.0 || strop == 0.0)  continue;
+
+       int loc = -1;
+       for (j = 0; j < SSR_NUM; j++)
+       {
+           ssr[j].sat = ssr[j].prn + ssr[j].sys * MAXPRNGPS;
+           if (ssr[j].sat == obs_vrs->data[i].sat)
+           {
+               loc = j;
+               break;
+           }
+       }
+       if (loc == -1) continue;
+
+       cbias[0] = ssr[loc].cbias[0];
+       cbias[1] = ssr[loc].cbias[1];
+       pbias[0] = ssr[loc].pbias[0];
+       pbias[1] = ssr[loc].pbias[1];
+
+       w1 = satwavelen(obs_vrs->data[i].sat, 0);
+       w2 = satwavelen(obs_vrs->data[i].sat, 1);
+
+       obs_vrs->data[i].LLI[0]  = 0;
+       obs_vrs->data[i].LLI[1]  = 0;
+       obs_vrs->data[i].code[0] = obs_rov->data[i].code[0];
+       obs_vrs->data[i].code[1] = obs_rov->data[i].code[1];
+       obs_vrs->data[i].SNR[0]  = 140;
+       obs_vrs->data[i].SNR[1]  = 140;
+       obs_vrs->data[i].P[0]    =  vec_vrs[i].r + strop + tecu2m1 * stec - grav_delay + cbias[0];
+       obs_vrs->data[i].P[1]    =  vec_vrs[i].r + strop + tecu2m2 * stec - grav_delay + cbias[1];
+       obs_vrs->data[i].L[0]    = (vec_vrs[i].r + strop - tecu2m1 * stec - grav_delay)/w1 + pbias[0] + phw;
+       obs_vrs->data[i].L[1]    = (vec_vrs[i].r + strop - tecu2m2 * stec - grav_delay)/w2 + pbias[1] + phw;
+
+       printf("obs: %12i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%14.4f,%14.4f,%14.4f,%14.4f\n", 
+       obs_vrs->time.time, obs_vrs->data[i].sat, soltide, phw*w1, phw*w2, grav_delay, strop, 
+       tecu2m1 * stec, tecu2m2 * stec, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
     }
+    printf("\n");
     return 1;
 }
 
+extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ssr_t* gad, obs_t *obs_vrs, vec_t *vec_vrs, double maskElev)
+{
+    int i, j, prn;
+    double cbias[2] = { 0.0 }, pbias[2] = { 0.0 }, dr[3] = { 0.0 };
+    double P[2] = { 0.0 }, L[2] = { 0.0 };
+    double rs[6] = { 0.0 }, rr[6] = { 0.0 }, phw = 0.0, phw2 = 0.0;
+    double stec = 0.0, strop = 0.0;
+    double tecu2m1 = 0.0, tecu2m2 = 0.0;
+    double w1 = 0.0, w2 = 0.0;
+    double grav_delay = 0.0;
+    double soltide = 0.0;
+
+    /* earth tides correction */
+    tidedisp(time, rcvpos, 1, NULL, dr);
+
+    obs_vrs->time = time;
+
+    for (i = 0; i < obs_vrs->n; i++)
+    {
+        if (norm(vec_vrs[i].rs, 3) < 0.01)     continue;
+
+        if (vec_vrs[i].azel[1]*R2D < maskElev) continue;
+
+        int sys = satsys(vec_vrs[i].sat, &prn);
+        obs_vrs->data[i].sat = vec_vrs[i].sat;
+        obs_vrs->data[i].sys = sys;
+        obs_vrs->data[i].prn = prn;
+
+        soltide = vec_vrs[i].e[0] * dr[0] + vec_vrs[i].e[1] * dr[1] + vec_vrs[i].e[2] * dr[2];
+
+        /* phase windup model */
+        //model_phw(obs_rov->time, obs_rov->data[i].sat, NULL, 2, vec_vrs[i].rs, obs_vrs->pos, &phw);
+        model_phw_bnc(time, vec_vrs[i].sat, NULL, 2, vec_vrs[i].rs, obs_vrs->pos, &phw);
+
+        /* gravitational delay correction */
+        grav_delay = ShapiroCorrection(sys, obs_vrs->pos, vec_vrs[i].rs);
+
+        /* slant tropospheric and ionospheric delay from HPAC*/
+        compute_high_prcision_atm_corr(vec_vrs[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
+        tecu2m1 = tecu2meter(vec_vrs[i].sat, 0);
+        tecu2m2 = tecu2meter(vec_vrs[i].sat, 1);
+        if (stec == 0.0 || strop == 0.0)  continue;
+
+        int loc = -1;
+        for (j = 0; j < SSR_NUM; j++)
+        {
+            ssr[j].sat = ssr[j].prn + ssr[j].sys * MAXPRNGPS;
+            if (ssr[j].sat == vec_vrs[i].sat)
+            {
+                loc = j;
+                break;
+            }
+        }
+        if (loc == -1) continue;
+
+        cbias[0] = ssr[loc].cbias[0];
+        cbias[1] = ssr[loc].cbias[1];
+        pbias[0] = ssr[loc].pbias[0];
+        pbias[1] = ssr[loc].pbias[1];
+
+        w1 = satwavelen(obs_vrs->data[i].sat, 0);
+        w2 = satwavelen(obs_vrs->data[i].sat, 1);
+
+        obs_vrs->data[i].LLI[0]  = 0;
+        obs_vrs->data[i].LLI[1]  = 0;
+        obs_vrs->data[i].code[0] = CODE_L1C;
+        obs_vrs->data[i].code[1] = CODE_L2C;
+        obs_vrs->data[i].SNR[0]  = 140;
+        obs_vrs->data[i].SNR[1]  = 140;
+        obs_vrs->data[i].P[0]    =  vec_vrs[i].r + strop + tecu2m1 * stec - grav_delay       + cbias[0];
+        obs_vrs->data[i].P[1]    =  vec_vrs[i].r + strop + tecu2m2 * stec - grav_delay       + cbias[1];
+        obs_vrs->data[i].L[0]    = (vec_vrs[i].r + strop - tecu2m1 * stec - grav_delay) / w1 + pbias[0] + phw;
+        obs_vrs->data[i].L[1]    = (vec_vrs[i].r + strop - tecu2m2 * stec - grav_delay) / w2 + pbias[1] + phw;
+
+        printf("obs: %12i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%14.4f,%14.4f,%14.4f,%14.4f\n",
+            obs_vrs->time.time, obs_vrs->data[i].sat, soltide, phw*w1, phw*w2, grav_delay, strop,
+            tecu2m1 * stec, tecu2m2 * stec, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+    }
+    printf("\n");
+    return 1;
+}

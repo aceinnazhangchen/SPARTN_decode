@@ -22,12 +22,14 @@
 *           2017/04/11 1.2  fix bug on calling geterp() in timdedisp()
 *-----------------------------------------------------------------------------*/
 #include "tides.h"
-
+#define RHO_DEG     180.0 / PI
+#define RHO_SEC     3600.0 * 180.0 / PI
+#define MJD_J2000   51544.5
 #define SQR(x)      ((x)*(x))
 #define AS2R        (D2R/3600.0)    /* arc sec to radian */
-#define GME         3.986004415E+14 /* earth gravitational constant */
-#define GMS         1.327124E+20    /* sun gravitational constant */
-#define GMM         4.902801E+12    /* moon gravitational constant */
+#define GME         398.6005e12     /* earth gravitational constant */
+#define GMS         1.3271250e20    /* sun gravitational constant */
+#define GMM         4.9027890e12    /* moon gravitational constant */
 
 /* coordinate rotation matrix ------------------------------------------------*/
 #define Rx(t,X) do { \
@@ -44,6 +46,29 @@
     (X)[8]=1.0; (X)[2]=(X)[5]=(X)[6]=(X)[7]=0.0; \
     (X)[0]=(X)[4]=cos(t); (X)[3]=sin(t); (X)[1]=-(X)[3]; \
 } while (0)
+
+
+
+// Rectangular Coordinates -> North, East, Up Components
+////////////////////////////////////////////////////////////////////////////
+void xyz2neu(const double* Ell, const double* xyz, double* neu) 
+{
+    double sinPhi = sin(Ell[0]);
+    double cosPhi = cos(Ell[0]);
+    double sinLam = sin(Ell[1]);
+    double cosLam = cos(Ell[1]);
+
+    neu[0] = -sinPhi * cosLam * xyz[0]
+        - sinPhi * sinLam * xyz[1]
+        + cosPhi * xyz[2];
+
+    neu[1] = -sinLam * xyz[0]
+        + cosLam * xyz[1];
+
+    neu[2] = +cosPhi * cosLam * xyz[0]
+        + cosPhi * sinLam * xyz[1]
+        + sinPhi * xyz[2];
+}
 
 /* time to day and sec -------------------------------------------------------*/
 static double time2sec(gtime_t time, gtime_t *day)
@@ -225,6 +250,31 @@ static void nut_iau1980(double t, const double *f, double *dpsi, double *deps)
     *deps *= 1E-4*AS2R;
 }
 
+//static void NutMatrix(double Mjd_TT, double *dpsi, double *deps)
+//{
+//
+//    const double ep[] = { 2000,1,1,12,0,0 };
+//    double mjd;
+//    mjd = 51544.5 + (timediff(gpst2utc(time), epoch2time(ep))) / 86400.0;
+//
+//    const double T = (mjd - MJD_J2000) / 36525.0;
+//
+//    double ls = 2.0*PI*Frac(0.993133 + 99.997306*T);
+//    double D = 2.0*PI*Frac(0.827362 + 1236.853087*T);
+//    double F = 2.0*PI*Frac(0.259089 + 1342.227826*T);
+//    double N = 2.0*PI*Frac(0.347346 - 5.372447*T);
+//
+//    double dpsi = (-17.200*sin(N) - 1.319*sin(2 * (F - D + N)) - 0.227*sin(2 * (F + N))
+//        + 0.206*sin(2 * N) + 0.143*sin(ls)) / RHO_SEC;
+//    double deps = (+9.203*cos(N) + 0.574*cos(2 * (F - D + N)) + 0.098*cos(2 * (F + N))
+//        - 0.090*cos(2 * N)) / RHO_SEC;
+//
+//    double eps = 0.4090928 - 2.2696E-4*T;
+//
+//    return;
+//}
+
+
 /* get earth rotation parameter values -----------------------------------------
 * get earth rotation parameter values
 * args   : erp_t  *erp        I   earth rotation parameters
@@ -356,7 +406,7 @@ void sunmoonpos_eci(gtime_t tut, double *rsun, double *rmoon)
     ast_args(t, f);
 
     /* obliquity of the ecliptic */
-    eps = 23.439291 - 0.0130042*t;
+    eps = 23.43929111-0.0130042*t;
     sine = sin(eps*D2R); cose = cos(eps*D2R);
 
     /* sun position in eci */
@@ -369,7 +419,6 @@ void sunmoonpos_eci(gtime_t tut, double *rsun, double *rmoon)
         rsun[0] = rs * cosl;
         rsun[1] = rs * cose*sinl;
         rsun[2] = rs * sine*sinl;
-
     }
     /* moon position in eci */
     if (rmoon)
@@ -385,7 +434,6 @@ void sunmoonpos_eci(gtime_t tut, double *rsun, double *rmoon)
         rmoon[0] = rm * cosp*cosl;
         rmoon[1] = rm * (cose*cosp*sinl - sine * sinp);
         rmoon[2] = rm * (sine*cosp*sinl + cose * sinp);
-
     }
 }
 
@@ -418,6 +466,27 @@ void sunmoonpos(gtime_t tutc, const double *erpv, double *rsun,double *rmoon, do
     if (rmoon) matmul("NN", 3, 1, 3, 1.0, U, rm, 0.0, rmoon);
     if (gmst) *gmst = gmst_;
 }
+
+
+// Sun's position
+///////////////////////////////////////////////////////////////////////////
+//double Sun(double Mjd_TT) 
+//{
+//    double r_sun[3] = { 0.0 };
+//    const double eps = 23.43929111 / RHO_DEG;
+//    const double T = (Mjd_TT - MJD_J2000) / 36525.0;
+//
+//    double M = 2.0*PI * Frac(0.9931267 + 99.9973583*T);
+//    double L = 2.0*PI * Frac(0.7859444 + M / 2.0 / PI + (6892.0*sin(M) + 72.0*sin(2.0*M)) / 1296.0e3);
+//    double r = 149.619e9 - 2.499e9*cos(M) - 0.021e9*cos(2 * M);
+//
+//    r_Sun << r * cos(L) << r * sin(L) << 0.0; r_Sun = rotX(-eps) * r_Sun;
+//
+//    return    rotZ(GMST(Mjd_TT))
+//        * NutMatrix(Mjd_TT)
+//        * PrecMatrix(MJD_J2000, Mjd_TT)
+//        * r_Sun;
+//}
 
 
 /* solar/lunar tides (ref [2] 7) ---------------------------------------------*/
@@ -611,8 +680,7 @@ static void tide_pole(gtime_t tut, const double *pos, const double *erpv,
 *          see ref [4] 5.2.1, 5.2.2, 5.2.3
 *          ver.2.4.0 does not use ocean loading and pole tide corrections
 *-----------------------------------------------------------------------------*/
-extern void tidedisp(gtime_t tutc, const double *rr, int opt, const erp_t *erp,
-                     const double *odisp, double *dr)
+extern void tidedisp(gtime_t tutc, const double *rr, int opt,const double *odisp, double *dr)
 {
     gtime_t tut;
     double pos[2],E[9],drt[3],denu[3],rs[3],rm[3],gmst,erpv[5]={0};
@@ -624,9 +692,9 @@ extern void tidedisp(gtime_t tutc, const double *rr, int opt, const erp_t *erp,
     
     trace(3,"tidedisp: tutc=%s\n",time_str(tutc,0));
     
-    if (erp) {
-        geterp(erp,utc2gpst(tutc),erpv);
-    }
+    //if (erp) {
+    //    geterp(erp,utc2gpst(tutc),erpv);
+    //}
     tut=timeadd(tutc,erpv[2]);
     
     dr[0]=dr[1]=dr[2]=0.0;
@@ -643,17 +711,17 @@ extern void tidedisp(gtime_t tutc, const double *rr, int opt, const erp_t *erp,
         tide_solid(rs,rm,pos,E,gmst,opt,drt);
         for (i=0;i<3;i++) dr[i]+=drt[i];
     }
-    if ((opt&2)&&odisp) { /* ocean tide loading */
-        tide_oload(tut,odisp,denu);
-        matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
-        for (i=0;i<3;i++) dr[i]+=drt[i];
-    }
-    if ((opt&4)&&erp) { /* pole tide */
-        tide_pole(tut,pos,erpv,denu);
-        matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
-        for (i=0;i<3;i++) dr[i]+=drt[i];
-    }
-    trace(5,"tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
+    //if ((opt&2)&&odisp) { /* ocean tide loading */
+    //    tide_oload(tut,odisp,denu);
+    //    matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
+    //    for (i=0;i<3;i++) dr[i]+=drt[i];
+    //}
+    //if ((opt&4)&&erp) { /* pole tide */
+    //    tide_pole(tut,pos,erpv,denu);
+    //    matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
+    //    for (i=0;i<3;i++) dr[i]+=drt[i];
+    //}
+    printf("tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
 }
 
 /* nominal yaw-angle ---------------------------------------------------------*/
@@ -729,23 +797,237 @@ extern int model_phw(gtime_t time, int sat, const char *type, int opt,
     /* unit vectors of receiver antenna */
     ecef2pos(rr, pos);
     xyz2enu(pos, E);
-    exr[0] = E[1]; exr[1] = E[4]; exr[2] = E[7]; /* x = north */
+    exr[0] =  E[1]; exr[1]  = E[4]; exr[2] =  E[7]; /* x = north */
     eyr[0] = -E[0]; eyr[1] = -E[3]; eyr[2] = -E[6]; /* y = west  */
 
     /* phase windup effect */
     cross3(ek, eys, eks);
     cross3(ek, eyr, ekr);
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < 3; i++) 
+    {
         ds[i] = exs[i] - ek[i] * dot(ek, exs, 3) - eks[i];
         dr[i] = exr[i] - ek[i] * dot(ek, exr, 3) + ekr[i];
     }
     cosp = dot(ds, dr, 3) / norm(ds, 3) / norm(dr, 3);
-    if (cosp < -1.0) cosp = -1.0;
-    else if (cosp > 1.0) cosp = 1.0;
+    if (cosp < -1.0)     cosp = -1.0;
+    else if (cosp > 1.0) cosp =  1.0;
+
+    if (fabs(fabs(cosp) - 1.0) < 1.0e-10) return 0;
+
     ph = acos(cosp) / 2.0 / PI;
     cross3(ds, dr, drs);
     if (dot(ek, drs, 3) < 0.0) ph = -ph;
 
     *phw = ph + floor(*phw - ph + 0.5); /* in cycle */
+
+    if (*phw >  0.5) *phw -= 1.0;
+    if (*phw < -0.5) *phw += 1.0;
+    printf("phw: sat=%3i, phw=%.3f\n", sat, *phw);
+
+    return 1;
+}
+
+/* phase windup model --------------------------------------------------------*/
+extern int model_phw_bnc(gtime_t time, int sat, const char *type, int opt,
+    const double *rs, const double *rr, double *phw)
+{
+    double exs[3], eys[3], sz[3],xsun[3], sx[3], sy[3], exr[3], eyr[3], eks[3], ekr[3], E[9];
+    double dr[3], ds[3], drs[3], r[3], pos[3], cosp, ph, erpv[5] = { 0.0 }, rsun[3];
+    double neu[3], rx[3], ry[3];
+    int i;
+
+    /* unit vector satellite to receiver */
+    for (i = 0; i < 3; i++) r[i] = rr[i] - rs[i];
+    if (!normv3(rs, sz)) return 0;
+
+    for (i = 0; i < 3; i++) sz[i] = - sz[i];
+
+    sunmoonpos(gpst2utc(time), erpv, rsun, NULL, NULL);
+    if (!normv3(rsun, xsun)) return 0;
+
+    cross3(sz, xsun, sy);
+    cross3(sy, sz, sx);
+
+    /* unit vectors of receiver antenna */
+    ecef2pos(rr, pos);
+
+    neu[0] = 1.0;
+    neu[1] = 0.0;
+    neu[2] = 0.0;
+    xyz2neu(pos, neu, rx);
+
+    neu[0] = 0.0;
+    neu[1] = -1.0;
+    neu[2] = 0.0;
+    xyz2neu(pos, neu, ry);
+
+    cross3(sz, sy, eks);
+    cross3(sz, ry, ekr);
+
+    /* unit vectors of receiver antenna */
+    for (i = 0; i < 3; i++)
+    {
+        ds[i] = sx[i]  - sz[i] * dot(sz, sx, 3)  - eks[i];
+        dr[i] = rx[i]  - sz[i] * dot(sz, rx, 3)  + ekr[i];
+    }
+
+    cosp = dot(ds, dr, 3) / norm(ds, 3) / norm(dr, 3);
+    if (cosp < -1.0)     cosp = -1.0;
+    else if (cosp > 1.0) cosp =  1.0;
+
+    ph = acos(cosp) / 2.0 / PI;
+
+    cross3(ds, dr, drs);
+    if (dot(sz, drs, 3) < 0.0) ph = -ph;
+
+    *phw = ph + floor(*phw - ph + 0.5); /* in cycle */
+
+    //printf("phw: sat=%3i, phw=%.3f\n", sat, *phw);
+
+    return 1;
+}
+
+
+/* phase windup model --------------------------------------------------------*/
+extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_m, const double *dSatVelocity_mps, const double *rr, double *phw)
+{
+    double dr[3], ds[3], drs[3], r[3], dRcvrPosLLH[3], cosp, ph;
+    double dMatNegRotY[9] = { 0, 0, 1, 1, 1, -1, 2, 2, 1};
+    double dMatDirVec1[9], dMatDirVec2[9], R2[9], R3[9];
+    int i;
+    double dSatRcvrUnitVec_p[3];
+    double dTempSatRcvrVec[3];
+
+    // unit vector satellite to receiver 
+    for (i = 0; i < 3; i++) r[i] = rr[i] - dSatPrecOrbitEcef_m[i];
+    if (!normv3(r, dSatRcvrUnitVec_p)) return 0;
+
+    // Compute local receiver coordinate system (Unit vectors)
+    ecef2pos(rr, dRcvrPosLLH);
+
+    double dRotValueR2_rad = (dRcvrPosLLH[0] - PI/2);
+    double dRotValueR3_rad = (dRcvrPosLLH[1] - PI);
+
+    Ry(dRotValueR2_rad, R2); 
+    Rz(dRotValueR3_rad, R3);
+
+    matmul("NN", 3, 3, 3, 1.0, dMatNegRotY, R2, 0.0, dMatDirVec1);
+    // Matrix of unit vectors (NEU)
+    matmul("NN", 3, 3, 3, 1.0, dMatDirVec1, R3, 0.0, dMatDirVec2);
+
+    // Unit vector b (north) 
+    double dTempRcvrNorthVec[3];
+    double dRcvrNorthUnitVec_b[3];
+    dTempRcvrNorthVec[0] = dMatDirVec2[0];
+    dTempRcvrNorthVec[1] = dMatDirVec2[1];
+    dTempRcvrNorthVec[2] = dMatDirVec2[2];
+    if (!normv3(dTempRcvrNorthVec, dRcvrNorthUnitVec_b)) return 0;
+
+    // Unit vector a (east) 
+   double dTempRcvrEastVec[3];
+   double dRcvrEastUnitVec_a[3];
+   dTempRcvrEastVec[0] = dMatDirVec2[3];
+   dTempRcvrEastVec[1] = dMatDirVec2[4];
+   dTempRcvrEastVec[2] = dMatDirVec2[5];
+   if (!normv3(dTempRcvrEastVec, dRcvrEastUnitVec_a)) return 0;
+   //SAPALIB::C_Utilities::UnitVec(dTempRcvrEastVec, dRcvrEastUnitVec_a);
+
+   // Compute local satellite coordinate system (Unit vectors)
+   //-----------------------------------------------------------
+  // Unit vector k (satellite mass center to Earth center)
+   double dSatMcUnitVec_k[3];
+   if (!normv3(dSatPrecOrbitEcef_m, dSatMcUnitVec_k)) return 0;
+
+   dSatMcUnitVec_k[0] *= (-1.0);
+   dSatMcUnitVec_k[1] *= (-1.0);
+   dSatMcUnitVec_k[2] *= (-1.0);
+
+   // Unit vector e (Velocity to Position Satellite) considering earth rotation effect.
+// Note: This unit vector replaces the unit vector computed with the sun position.
+   double dSatVelUnitVec_e[3];
+   double dSatVel_eci[3];
+
+   dSatVel_eci[0] = dSatVelocity_mps[0] - OMGE * dSatPrecOrbitEcef_m[1];
+   dSatVel_eci[1] = dSatVelocity_mps[1] + OMGE * dSatPrecOrbitEcef_m[0];
+   dSatVel_eci[2] = dSatVelocity_mps[2];
+   if (!normv3(dSatVel_eci, dSatVelUnitVec_e)) return 0;
+
+   // Unit vector j (k x e)
+   double dXkeUnitVec_j[3];
+   cross3(dSatMcUnitVec_k, dSatVelUnitVec_e, dXkeUnitVec_j);
+
+   // Unit vector i (j x k)
+   double dXjkUnitVec_i[3];
+   cross3(dXkeUnitVec_j, dSatMcUnitVec_k, dXjkUnitVec_i);
+
+   // Compute receiver dipole
+   double dDotRcvr_p_a =dot(dSatRcvrUnitVec_p, dRcvrEastUnitVec_a,3);
+
+   double dVecXRcvr_p_b[3];
+   cross3(dSatRcvrUnitVec_p, dRcvrNorthUnitVec_b, dVecXRcvr_p_b);
+
+   double dVecRcvrScale_p_dot[3];
+   dVecRcvrScale_p_dot[0] = dSatRcvrUnitVec_p[0] * dDotRcvr_p_a;
+   dVecRcvrScale_p_dot[1] = dSatRcvrUnitVec_p[1] * dDotRcvr_p_a;
+   dVecRcvrScale_p_dot[2] = dSatRcvrUnitVec_p[2] * dDotRcvr_p_a;
+
+   double dRcvrDipole[3];
+   dRcvrDipole[0] = (dRcvrEastUnitVec_a[0] - dVecRcvrScale_p_dot[0]) + dVecXRcvr_p_b[0];
+   dRcvrDipole[1] = (dRcvrEastUnitVec_a[1] - dVecRcvrScale_p_dot[1]) + dVecXRcvr_p_b[1];
+   dRcvrDipole[2] = (dRcvrEastUnitVec_a[2] - dVecRcvrScale_p_dot[2]) + dVecXRcvr_p_b[2];
+
+   // Compute satellite dipole
+   double dDotSat_p_a = dot(dSatRcvrUnitVec_p, dXjkUnitVec_i,3);
+
+   double dVecXSat_p_b[3];
+   cross3(dSatRcvrUnitVec_p, dXkeUnitVec_j, dVecXSat_p_b);
+
+   double dVecSatScale_p_dot[3];
+   dVecSatScale_p_dot[0] = dSatRcvrUnitVec_p[0] * dDotSat_p_a;
+   dVecSatScale_p_dot[1] = dSatRcvrUnitVec_p[1] * dDotSat_p_a;
+   dVecSatScale_p_dot[2] = dSatRcvrUnitVec_p[2] * dDotSat_p_a;
+
+   double dSatDipole[3];
+   dSatDipole[0] = (dXjkUnitVec_i[0] - dVecSatScale_p_dot[0]) - dVecXSat_p_b[0];
+   dSatDipole[1] = (dXjkUnitVec_i[1] - dVecSatScale_p_dot[1]) - dVecXSat_p_b[1];
+   dSatDipole[2] = (dXjkUnitVec_i[2] - dVecSatScale_p_dot[2]) - dVecXSat_p_b[2];
+
+   // Compute fractional part of cycle deltaPhi
+   //------------------------------------------
+   // Angle zeta
+   double dVecXDipole[3];
+   cross3(dSatDipole, dRcvrDipole, dVecXDipole);
+   double dZeta = dot(dSatRcvrUnitVec_p, dVecXDipole,3);
+
+   // deltaPhi
+   double dSatDipoleNorm  = norm(dSatDipole,3);
+   double dRcvrDipoleNorm = norm(dRcvrDipole,3);
+
+   double dTheta = dot(dSatDipole, dRcvrDipole, 3) / (dSatDipoleNorm * dRcvrDipoleNorm);
+   double dDeltaPhi_cyc = acos(dTheta) / (2*PI);
+
+   if (dZeta < 0.0)
+   {
+       dDeltaPhi_cyc = dDeltaPhi_cyc * (-1.0);
+   }
+
+   // Compute phase wind-up correction
+   //---------------------------------
+   double dN_cyc = 0.0;
+   double dPrevPhaseWindupCorr_cyc = 0.0;
+   int   bIsPrevPhaseWindUpValid = 1;
+
+   dPrevPhaseWindupCorr_cyc = *phw;
+
+   if (bIsPrevPhaseWindUpValid)
+   {
+       // round to nearest integer
+       dN_cyc = floor((dPrevPhaseWindupCorr_cyc - dDeltaPhi_cyc) + 0.5);
+   }
+
+   *phw = dDeltaPhi_cyc + dN_cyc;
+    //*phw = ph + floor(*phw - ph + 0.5); /* in cycle */
+
+    //printf("phw: sat=%3i, phw=%.3f\n", sat, *phw);
     return 1;
 }

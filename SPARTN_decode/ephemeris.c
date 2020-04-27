@@ -93,7 +93,7 @@
 #define DEFURASSR 0.15            /* default accurary of ssr corr (m) */
 #define MAXECORSSR 90.0           /* max orbit correction of ssr (m) */
 #define MAXCCORSSR (1E-6*CLIGHT)  /* max clock correction of ssr (m) */
-#define MAXAGESSR 90.0            /* max age of ssr orbit and clock (s) */
+#define MAXAGESSR    90.0         /* max age of ssr orbit and clock (s) */
 #define MAXAGESSR_HRCLK 10.0      /* max age of ssr high-rate clock (s) */
 #define STD_BRDCCLK 30.0          /* error of broadcast clock (m) */
 #define STD_GAL_NAPA 500.0        /* error of galileo ephemeris for NAPA (m) */
@@ -204,7 +204,7 @@ extern void eph2pos(gtime_t time, const eph_t *eph, double *rs, double *dts,
     switch ((sys=satsys(eph->sat,&prn))) {
         case _SYS_GAL_: mu=MU_GAL; omge=OMGE_GAL; break;
         case _SYS_BDS_: mu=MU_CMP; omge=OMGE_CMP; break;
-        default:      mu=MU_GPS; omge=OMGE;     break;
+        default:        mu=MU_GPS; omge=OMGE;     break;
     }
     M=eph->M0+(sqrt(mu/(eph->A*eph->A*eph->A))+eph->deln)*tk;
     
@@ -491,13 +491,13 @@ static int ephpos(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
     return 1;
 }
 
-#ifdef _USE_PPP_
 /* satellite position and clock with ssr correction --------------------------*/
 static int satpos_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
                       int opt, double *rs, double *dts, double *var, int *svh)
 {
     ssr_t *ssr = NULL;
     eph_t *eph;
+    double dorb[3], dclk0;
     double t1,t2,t3,er[3],ea[3],ec[3],rc[3],deph[3],dclk,dant[3]={0},tk;
     int i,sys;
 
@@ -578,32 +578,30 @@ static int satpos_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
     }
     cross3(ea,ec,er);
     
-    /* satellite antenna offset correction */
-    if (opt) {
-        //satantoff(time,rs,sat,nav,dant);
-    }
     for (i=0;i<3;i++) {
+        dorb[i] = rs[i];
         rs[i]+=-(er[i]*deph[0]+ea[i]*deph[1]+ec[i]*deph[2])+dant[i];
     }
+
+    dclk0 = dts[0];
     /* t_corr = t_sv - (dts(brdc) + dclk(ssr) / CLIGHT) (ref [10] eq.3.12-7) */
     dts[0]+=dclk/CLIGHT;
     
     /* variance by ssr ura */
     *var=var_urassr(ssr->ura);
     
-    trace(5,"satpos_ssr: %s sat=%3d deph=%6.3f %6.3f %6.3f er=%6.3f %6.3f %6.3f dclk=%6.3f var=%6.3f\n",
-          time_str(time,2),sat,deph[0],deph[1],deph[2],er[0],er[1],er[2],dclk,*var);
-    
+    //printf("satpos_ssr: %s sat=%3d orb=%14.3f %14.3f %14.3f %6.3f %6.3f %6.3f %6.3f er=%6.3f %6.3f %6.3f dclk=%14.4f %6.3f %6.3f var=%6.3f\n",
+    //    time_str(time, 2), sat, dorb[0], dorb[1], dorb[2], deph[0], deph[1], deph[2], t1, er[0], er[1], er[2], dclk0* 1E9, dclk,t2, *var);
+
     return 1;
 }
-#endif
+
 
 extern void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int ephopt)
 {
     gtime_t teph = obs->time, time[MAXOBS] = { 0 };
-    double dt, pr;
-    int i, j, sys = 0, prn = 0;
-
+    double dt, pr, e[3] = { 0 };
+    int i, j, sys = 0, prn = 0, sap_sat, idx=-1;
     for (i = 0; i < obs->n; i++)
     {
         vec[i].sat = obs->data[i].sat;
@@ -616,59 +614,156 @@ extern void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int 
         /* satellite clock bias by broadcast ephemeris */
         if (!ephclk(time[i], teph, obs->data[i].sat, nav, &dt))  continue;
         time[i] = timeadd(time[i], -dt);
+        idx = -1;
+        for (j = 0; j < nav->ns; j++)
+        {
+            sap_sat = (ssr[j].sys == 0 ? ssr[j].prn : MAXPRNGPS + ssr[j].prn);
+            if (obs->data[i].sat == sap_sat)
+            {
+                idx = j;
+                break;
+            }
+        }
+        if (idx == -1) continue;
+        /* satellite position and clock at transmission time */
+        if (!satpos(time[i], teph, obs->data[i].sat, ephopt, nav, &ssr[idx], vec[i].rs + 0, vec[i].dts + 0, &vec[i].var, &vec[i].svh))
+            continue;
+
+        e[0] = vec[i].rs[0] - obs->pos[0];
+        e[1] = vec[i].rs[1] - obs->pos[1];
+        e[2] = vec[i].rs[2] - obs->pos[2];
+        double r = norm(e, 3);
+        /* transmission time by satellite clock */
+        time[i] = timeadd(obs->time, -r / CLIGHT);
 
         /* satellite position and clock at transmission time */
-        if (!satpos(time[i], teph, obs->data[i].sat, ephopt, nav, ssr, vec[i].rs + 0, vec[i].dts + 0, &vec[i].var, &vec[i].svh))
+        if (!satpos(time[i], teph, obs->data[i].sat, ephopt, nav, &ssr[idx], vec[i].rs + 0, vec[i].dts + 0, &vec[i].var, &vec[i].svh))
             continue;
+
         /* if no precise clock available, use broadcast clock instead */
         if (vec[i].dts[0] == 0.0)
         {
-            if (!ephclk(time[i], teph, obs->data[i].sat, nav, vec[i].rs + 6)) continue;
+            if (!ephclk(time[i], teph, obs->data[i].sat, nav, vec[i].dts + 0)) continue;
             vec[i].var = SQR(STD_BRDCCLK);
         }
-    }
-    for (i = 0; i < obs->n; i++)
-    {
-        if (vec[i].rs[0] == 0.0) continue;
-        sys = satsys(obs->data[i].sat, &prn);
+
+        //e[0] = vec[i].rs[0] - obs->pos[0];
+        //e[1] = vec[i].rs[1] - obs->pos[1];
+        //e[2] = vec[i].rs[2] - obs->pos[2];
+        //r = norm(e, 3);
+        //double dr = fabs(r-pr)/CLIGHT*3.0e3;
+        printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f,%10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
     }
 }
+
+static int match_nav_ssr(nav_t *nav, sap_ssr_t *ssr, int *inav, int *issr)
+{
+    int n=0, i, j;
+    for (i = 0; i < SSR_NUM; ++i)
+    {
+        if (ssr[i].sys == 0)
+        {
+            for (j = 0; j < nav->n; j++)
+            {
+                if (ssr[i].sat == nav->eph[j].sat && ssr[i].iod[0]== nav->eph[j].iode)
+                {
+                    inav[n] = j;
+                    issr[n] = i;
+                    ++n;
+                }
+            }
+        }
+        else
+        {
+            for (j = 0; j < nav->ng; j++)
+            {
+                if (ssr[i].sat == nav->geph[j].sat  && ssr[i].iod[0] == nav->geph[j].iode)
+                {
+                    inav[n] = j+100;
+                    issr[n] = i;
+                    ++n;
+                }
+            }
+        }
+    }
+    return n;
+}
+
+extern int satposs_sap_rcv(gtime_t teph, double *rcvpos, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int ephopt)
+{
+    gtime_t time[MAXOBS] = { 0 };
+    int inav[MAXOBS] = { 0 }, issr[MAXOBS] = { 0 };
+    double dt, pr, e[3] = { 0 },r=0.0;
+    int i, j, sys = 0, prn = 0, nsat = 0;;
+    double rho = 0.0;
+    int nobs = match_nav_ssr(nav, ssr, inav, issr);
+
+    for (i = 0; i < nobs; i++)
+    {
+        vec[i].sat = ssr[issr[i]].sat;
+        sys = satsys(ssr[issr[i]].sat, &prn);
+        double tt = 0.075, tmpt=0.0;
+        while (1)
+        {
+        // Correction station position due to Earth Rotation
+        // -------------------------------------------------
+            double dPhi = OMGE * rho /  CLIGHT;
+            double xRec = rcvpos[0] * cos(dPhi) - rcvpos[1] * sin(dPhi);
+            double yRec = rcvpos[1] * cos(dPhi) + rcvpos[0] * sin(dPhi);
+            double zRec = rcvpos[2];
+
+            /* transmission time by satellite clock */
+            time[i] = timeadd(teph, -tt);
+            /* satellite clock bias by broadcast ephemeris */
+            //if (!ephclk(time[i], teph, vec[i].sat, nav, &dt))  continue; // break;
+            //time[i] = timeadd(time[i], -dt);
+            /* satellite position and clock at transmission time */
+            if (!satpos(time[i], teph, vec[i].sat, ephopt, nav, &ssr[issr[i]], vec[i].rs, vec[i].dts, &vec[i].var, &vec[i].svh))
+                break;
+
+            rho  = sqrt(SQR(vec[i].rs[0] - xRec) + SQR(vec[i].rs[1] - yRec) + SQR(vec[i].rs[2] - zRec));
+            //tmpt = sqrt(SQR(vec[i].rs[0] - rcvpos[0]) + SQR(vec[i].rs[1] - rcvpos[1]) + SQR(vec[i].rs[2] - rcvpos[2])) ;
+            tmpt = rho / CLIGHT;
+            if (fabs(tmpt - tt) < 1.0e-8)
+            {
+                break;
+            }
+            else
+                tt = tmpt;
+        }
+    
+        /* if no precise clock available, use broadcast clock instead */
+        if (vec[i].dts[0] == 0.0)
+        {
+            if (!ephclk(time[i], teph, vec[i].sat, nav, vec[i].dts + 0)) continue;
+            vec[i].var = SQR(STD_BRDCCLK);
+        }
+        else
+            nsat++;
+
+        printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f, %14.3f, %10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, rho, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
+
+    }
+    return nsat;
+}
+
 
 /* satellite position and clock with ssr correction --------------------------*/
 static int satpos_sap_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav, const sap_ssr_t *ssr, double *rs, double *dts, double *var, int *svh)
 {
     eph_t *eph;
-    double t1, t2, t3, er[3], ea[3], ec[3], rc[3], deph[3], dclk, dant[3] = { 0 }, tk, cur_time;
+    double t1, t2, t3, er[3], ea[3], ec[3], rc[3], dorb[3], deph[3], dclk0, dclk, dant[3] = { 0 }, tk, cur_time, ssr_time;
     int i, sys, week, sap_sat=0;
-    if (nav->ns == 0) return 0;
-
-    for (i = 0; i < nav->ns; i++)
-    {
-        sap_sat = (ssr->sys==0 ? ssr->prn : MAXPRNGPS+ssr->prn);
-        if (sat == ssr->prn) break;
-    }
-
     if (ssr->t0[0]==0.0 || ssr->t0[1]==0.0)
     {
         /*     trace(2,"no ssr orbit correction: %s sat=%3d\n",time_str(time,0),sat);  */
         return 0;
     }
 
-    /* inconsistency between orbit and clock correction */
-    //if (ssr->iod[0] != ssr->iod[1]) 
-    //{
-    //    trace(2, "inconsist ssr correction: %s sat=%3d iod=%d %d\n",
-    //        time_str(time, 0), sat, ssr->iod[0], ssr->iod[1]);
-    //    *svh = -1;
-    //    return 0;
-    //}
 
-    cur_time = time2gpst(time, &week);
-    cur_time += week * 7 * 24 * 3600.0;
-
-    t1 = cur_time-ssr->t0[0];
-    t2 = cur_time-ssr->t0[1];
-    t3 = cur_time-ssr->t0[2];
+    t1 = fmod(time.time + time.sec, 86400.0) - fmod(ssr->t0[0], 86400.0);
+    t2 = fmod(time.time + time.sec, 86400.0) - fmod(ssr->t0[1], 86400.0);
+    t3 = fmod(time.time + time.sec, 86400.0) - fmod(ssr->t0[2], 86400.0);
 
     /* ssr orbit and clock correction (ref [4]) */
     if (fabs(t1) > MAXAGESSR || fabs(t2) > MAXAGESSR)
@@ -716,16 +811,16 @@ static int satpos_sap_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
 
     for (i = 0; i < 3; i++) 
     {
-        rs[i] += -(er[i] * deph[0] + ea[i] * deph[1] + ec[i] * deph[2]) + dant[i];
+        dorb[i] = rs[i];
+        rs[i] -= (er[i] * deph[0] + ea[i] * deph[1] + ec[i] * deph[2]);
     }
+
+    dclk0 = dts[0];
     /* t_corr = t_sv - (dts(brdc) + dclk(ssr) / CLIGHT) (ref [10] eq.3.12-7) */
-    dts[0] += dclk / CLIGHT;
+    dts[0] -= dclk / CLIGHT;
 
     /* variance by ssr ura */
     *var = var_urassr(ssr->ure);
-
-    trace(5, "satpos_ssr: %s sat=%3d deph=%6.3f %6.3f %6.3f er=%6.3f %6.3f %6.3f dclk=%6.3f var=%6.3f\n",
-        time_str(time, 2), sat, deph[0], deph[1], deph[2], er[0], er[1], er[2], dclk, *var);
 
     return 1;
 }
@@ -759,12 +854,10 @@ extern int satpos(gtime_t time, gtime_t teph, int sat, int ephopt,
     *svh=0;
     switch (ephopt) 
     {
-        case EPHOPT_BRDC  : return ephpos     (time,teph,sat,nav,-1,rs,dts,var,svh);
-#ifdef _USE_PPP_
-        case EPHOPT_SSRAPC: return satpos_ssr (time,teph,sat,nav, 0,rs,dts,var,svh);
-        case EPHOPT_SSRCOM: return satpos_ssr (time,teph,sat,nav, 1,rs,dts,var,svh);
-#endif
-        case EPHOPT_SSRSAP: return satpos_sap_ssr(time, teph, sat, nav,ssr, 1, rs, dts, var, svh);
+        case EPHOPT_BRDC  : return ephpos        (time,teph,sat,nav,-1,rs,dts,var,svh);
+        case EPHOPT_SSRAPC: return satpos_ssr    (time,teph,sat,nav, 0,rs,dts,var,svh);
+        case EPHOPT_SSRCOM: return satpos_ssr    (time,teph,sat,nav, 1,rs,dts,var,svh);
+        case EPHOPT_SSRSAP: return satpos_sap_ssr(time, teph, sat, nav,ssr, rs, dts, var, svh);
     }
     *svh=-1;
     return 0;
@@ -844,14 +937,10 @@ extern void satposs(obs_t *obs, vec_t *vec, nav_t *nav, int ephopt)
     {
         if (vec[i].rs[0] == 0.0) continue;
 		sys = satsys(obs->data[i].sat, &prn);
-#ifdef _TRACE_
-        trace(3, "%s sat=%c%02d rs=%13.3f %13.3f %13.3f dts=%12.3f var=%7.3f svh=%02X\n", time_str(time[i], 6), sys2char(sys), prn, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2]
-            , vec[i].dts[0] * 1E9, vec[i].var, vec[i].svh);
-#endif
+        printf("%s sat=%c%02d rs=%13.3f %13.3f %13.3f dts=%12.3f var=%7.3f\n", time_str(time[i], 6), sys2char(sys), prn, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2]
+            , vec[i].dts[0] * 1E9, vec[i].var);
     }
 }
-
-
 
 /* select satellite ephemeris --------------------------------------------------
 * select satellite ephemeris. call it before calling satpos(),satposs().
@@ -876,19 +965,21 @@ extern void satseleph(int sys, int sel)
 
 extern int compute_vector_data(obs_t *obs, vec_t *vec)
 {
-    int i;
+    int i,sys, prn;
     int n = 0;
     vec_t  *vecd = NULL;
     double blh[3] = { 0.0 };
 
     ecef2pos(obs->pos, blh);
-
+    printf("rcvpos=%13.3f %13.3f %13.3f\n", obs->pos[0], obs->pos[1], obs->pos[2]);
     for (i = 0; i < obs->n; ++i)
     {
+        sys = satsys(obs->data[i].sat, &prn);
         vecd = vec + i;
         if (norm(vecd->rs, 3) < 0.01) continue;
         /* compute geometric-range and azimuth/elevation angle */
         vecd->r = geodist(vecd->rs, obs->pos, vecd->e);
+        printf("%s sat=%c%2d rs=%13.3f dts=%12.3f\n", time_str(obs->time, 6), sys2char(sys), prn, vecd->r, vecd->dts[0] * CLIGHT);
 		vecd->r -= CLIGHT * vecd->dts[0];
         vecd->rate = geovel(vecd->rs, obs->pos, vecd->e);
 
@@ -896,9 +987,10 @@ extern int compute_vector_data(obs_t *obs, vec_t *vec)
         /* satellite clock-bias */
         vecd->sat = obs->data[i].sat;
         vecd->tro = tropmodel(blh, vecd->azel, 0.7);
-
         ++n;
     }
     return n;
 }
+
+
 

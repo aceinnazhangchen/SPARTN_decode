@@ -1,4 +1,4 @@
-#ifndef _RTKLIB_CORE_H_
+﻿#ifndef _RTKLIB_CORE_H_
 #define _RTKLIB_CORE_H_
 
 #ifdef __cplusplus
@@ -15,7 +15,7 @@ extern "C" {
 #define PI          3.1415926535897932  /* pi */
 #endif
 
-#define AU          149597870691.0      /* 1 AU (m) */
+#define AU          149597870691.0       /* 1 AU (m) */
 #define SQR(x)		((x)*(x))
 #define D2R         (PI/180.0)          /* deg to rad */
 #define R2D         (180.0/PI)          /* rad to deg */

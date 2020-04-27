@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "rtklib_core.h"
 #include "model.h"
 #include "rtcm.h"
 #include "gnss_math.h"
@@ -193,7 +193,7 @@ extern double satazel(const double *pos, const double *e, double *azel)
 
 extern double geodist(const double *rs, const double *rr, double *e)
 {
-	double r;
+    double r, sagnac = 0.0;;
 	int i;
 
 	for (i = 0; i < 3; i++)
@@ -201,7 +201,9 @@ extern double geodist(const double *rs, const double *rr, double *e)
 	r = norm(e, 3);
 	for (i = 0; i < 3; i++)
 		e[i] /= r;
-	return r + OMGE * (rs[0] * rr[1] - rs[1] * rr[0]) / CLIGHT;
+
+    sagnac = OMGE * (rs[0] * rr[1] - rs[1] * rr[0]) / CLIGHT;
+	return r + sagnac;
 }
 /* geometric distance ----------------------------------------------------------
 * compute geometric distance and receiver-to-satellite unit vector
@@ -342,7 +344,9 @@ double tropmapf(gtime_t time, const double pos[], const double azel[],
     if (mapfw) *mapfw = gmfw;
     return gmfh;
 #else
-    return nmf(time, pos, azel, mapfw); /* NMF */
+    double m_h = nmf(time, pos, azel, mapfw);
+    //printf("nmf: ele:%.3f, m_h = %.3f, m_w = %.3f\n", azel[1]*R2D,m_h, *mapfw);
+    return m_h; /* NMF */
 #endif
 }
 

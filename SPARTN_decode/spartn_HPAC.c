@@ -58,7 +58,7 @@ void decode_area_data_block(raw_spartn_t* spartn, HPAC_area_t* area, int tab) {
 //Table 6.14 troposphere small coefficient block 
 void decode_troposphere_small_coefficient_block(raw_spartn_t* spartn, HPAC_troposphere_t* troposphere, HPAC_troposphere_small_t* small_coefficient, int tab) {
 	uint8_t* payload = spartn->payload;
-	small_coefficient->SF045_T00 = getbitu(payload, spartn->offset, 7) * 0.004 - 0.252; spartn->offset += 7; log(LOG_DEBUG, tab, "SF045_T00 = %f", small_coefficient->SF045_T00);//0,1,2
+	small_coefficient->SF045_T00 = getbitu(payload, spartn->offset, 7) * 0.004 - 0.252 + 0.252; spartn->offset += 7; log(LOG_DEBUG, tab, "SF045_T00 = %f", small_coefficient->SF045_T00);//0,1,2
 	if (troposphere->SF041_Troposphere_equation_type == 1 || troposphere->SF041_Troposphere_equation_type == 2) {
 		small_coefficient->SF046_T01 = getbitu(payload, spartn->offset, 7) * 0.001 - 0.063; spartn->offset += 7; log(LOG_DEBUG, tab, "SF046_T01 = %f", small_coefficient->SF046_T01);
 		small_coefficient->SF046_T10 = getbitu(payload, spartn->offset, 7) * 0.001 - 0.063; spartn->offset += 7; log(LOG_DEBUG, tab, "SF046_T10 = %f", small_coefficient->SF046_T10);
@@ -70,7 +70,7 @@ void decode_troposphere_small_coefficient_block(raw_spartn_t* spartn, HPAC_tropo
 //Table 6.15 troposphere large coefficient block 
 void decode_troposphere_large_coefficient_block(raw_spartn_t* spartn, HPAC_troposphere_t* troposphere, HPAC_troposphere_large_t* large_coefficient, int tab) {
 	uint8_t* payload = spartn->payload;
-	large_coefficient->SF048_T00 = getbitu(payload, spartn->offset, 9) * 0.004 - 1.020; spartn->offset += 9; log(LOG_DEBUG, tab, "SF048_T00 = %f", large_coefficient->SF048_T00);//0,1,2
+	large_coefficient->SF048_T00 = getbitu(payload, spartn->offset, 9) * 0.004 - 1.020 + 0.252; spartn->offset += 9; log(LOG_DEBUG, tab, "SF048_T00 = %f", large_coefficient->SF048_T00);//0,1,2
 	if (troposphere->SF041_Troposphere_equation_type == 1 || troposphere->SF041_Troposphere_equation_type == 2) {
 		large_coefficient->SF049_T01 = getbitu(payload, spartn->offset, 9) * 0.001 - 0.255; spartn->offset += 9; log(LOG_DEBUG, tab, "SF049_T01 = %f", large_coefficient->SF049_T01);
 		large_coefficient->SF049_T10 = getbitu(payload, spartn->offset, 9) * 0.001 - 0.255; spartn->offset += 9; log(LOG_DEBUG, tab, "SF049_T10 = %f", large_coefficient->SF049_T10);
@@ -85,10 +85,10 @@ void decode_troposphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_trop
 	uint8_t* payload = spartn->payload;
 	//Troposphere polynomial coefficient block 
 	if (area->SF040_Tropo == 1 || area->SF040_Tropo == 2) {
-		troposphere->SF041_Troposphere_equation_type = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF041_Troposphere_equation_type = %d", troposphere->SF041_Troposphere_equation_type);
-		troposphere->SF042_Troposphere_quality = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF042_Troposphere_quality = %d", troposphere->SF042_Troposphere_quality);
-		troposphere->SF043_Area_average_vertical_hydrostatic_delay = getbitu(payload, spartn->offset, 8)*0.004 - 0.508;  spartn->offset += 8; log(LOG_DEBUG, tab, "SF043_Area_average_vertical_hydrostatic_delay = %f", troposphere->SF043_Area_average_vertical_hydrostatic_delay);
-		troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF044_Troposphere_polynomial_coefficient_size_indicator = %d", troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator);
+		troposphere->SF041_Troposphere_equation_type = getbitu(payload, spartn->offset, 3);  spartn->offset += 3;                                    log(LOG_DEBUG, tab, "SF041_Troposphere_equation_type = %d", troposphere->SF041_Troposphere_equation_type);
+		troposphere->SF042_Troposphere_quality = getbitu(payload, spartn->offset, 3);  spartn->offset += 3;                                          log(LOG_DEBUG, tab, "SF042_Troposphere_quality = %d", troposphere->SF042_Troposphere_quality);
+		troposphere->SF043_Area_average_vertical_hydrostatic_delay = getbitu(payload, spartn->offset, 8)*0.004 - 0.508 + 2.30;  spartn->offset += 8; log(LOG_DEBUG, tab, "SF043_Area_average_vertical_hydrostatic_delay = %f", troposphere->SF043_Area_average_vertical_hydrostatic_delay);
+		troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator = getbitu(payload, spartn->offset, 1);  spartn->offset += 1;            log(LOG_DEBUG, tab, "SF044_Troposphere_polynomial_coefficient_size_indicator = %d", troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator);
 		if (troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator) {
 			//Table 6.15
 			HPAC_troposphere_large_t* large_coefficient = &(troposphere->large_coefficient);

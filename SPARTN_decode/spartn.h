@@ -10,8 +10,8 @@ extern "C"
 #endif
 
 #define SPARTN_PREAMB 0x73 
-#define RAP_NUM       36
-#define SSR_NUM       20
+#define RAP_NUM       48
+#define SSR_NUM       30
 
 #define DAY_SECOND    86400
 
@@ -257,6 +257,7 @@ typedef struct {
 typedef struct {                            /* SSR correction type */
     unsigned char prn;
 	unsigned char sys;
+    unsigned char sat;
     double  t0[6];                         /* epoch time (GPST) {eph,clk,cbias,pbias,tro,ion} */
     int     iod[5];                        /* iod ssr {eph,clk,pbias} */
 	double  ure;                           /* user range error*/
@@ -270,6 +271,7 @@ typedef struct {                            /* SSR correction type */
     double  ave_htd;
     double  tro_coef[3 * RAP_NUM];                  /* T00,T01,T10*/
     double  stec_coef[3 * RAP_NUM];                 /* C00,C01.C10*/
+    int     rap_num;
 } sap_ssr_t;
 
 typedef struct {
@@ -283,6 +285,7 @@ typedef struct {
 	LPAC_t* lpac;
 	gad_ssr_t ssr_gad[RAP_NUM];
 	uint8_t ssr_offset;
+    uint8_t eos;
 	sap_ssr_t ssr[SSR_NUM];
 } spartn_t;
 

@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-
+extern double time2doy(gtime_t t);
 extern void blh2C_en(const double *blh, double C_en[3][3]);
 extern void xyz2ned(double C_en[3][3], double *xyz, double *covXYZ, double *ned, double *covNED);
 extern void blhdiff(double *blh, double *blh_ref, double *ned);
@@ -22,7 +22,7 @@ extern double satazel(const double *pos, const double *e, double *azel);
 extern double geodist(const double *rs, const double *rr, double *e);
 extern double geovel(const double *rs, const double *rr, double *e);
 extern double tropmodel(const double *blh, const double *azel, double humi);
-
+extern double tropmapf(gtime_t time, const double pos[], const double azel[], double *mapfw);
 void deg2dms(double deg, double *dms, int ndec);
 
 /* output NMEA GGA */

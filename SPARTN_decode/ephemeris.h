@@ -38,6 +38,9 @@ void satposs(obs_t *obs, vec_t *vec, nav_t *nav, int ephopt);
 /* compute satellit position using Sapcorda SSR*/
 void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int ephopt);
 
+/* compute satellit position using Sapcorda SSR and rover position*/
+int satposs_sap_rcv(gtime_t teph, double *rcvpos, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int ephopt);
+
 int compute_vector_data(obs_t* obs, vec_t* vec);
 
 /*--------------------------------------------------------------------*/
