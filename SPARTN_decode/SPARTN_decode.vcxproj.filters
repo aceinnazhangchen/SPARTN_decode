@@ -60,6 +60,21 @@
     <ClCompile Include="tides.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="rtcm3e.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="rinex.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="main.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sapcorda_ssr.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="stringex.cpp">
+      <Filter>头文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bits.h">
@@ -93,6 +108,18 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="tides.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="rinex.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="sapcorda_ssr.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="export_ssr.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="stringex.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -499,9 +499,6 @@ unsigned int rtk_crc24q(const unsigned char *buff, int len)
     return crc;
 }
 
-#define RTCM2PREAMB 0x66 /* rtcm ver.2 frame preamble */
-#define RTCM3PREAMB 0xD3 /* rtcm ver.3 frame preamble */
-
 /* extract unsigned/signed bits ------------------------------------------------
 * extract unsigned/signed bits from byte data
 * args   : unsigned char *buff I byte data
@@ -590,7 +587,7 @@ typedef struct
 } msm_h_t;
 
 
-#define ROUND_U(x) ((unsigned int)floor((x) + 0.5))
+
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 /* ssr update intervals ------------------------------------------------------*/
@@ -599,38 +596,8 @@ static const double ssrudint[16] = {
 
 #define PRUNIT_GPS 299792.458     /* rtcm ver.3 unit of gps pseudorange (m) */
 #define PRUNIT_GLO 599584.916     /* rtcm ver.3 unit of glonass pseudorange (m) */
-#define RANGE_MS (CLIGHT * 0.001) /* range in 1 ms */
 
-#define P2_10 0.0009765625          /* 2^-10 */
-#define P2_34 5.820766091346740E-11 /* 2^-34 */
-#define P2_46 1.421085471520200E-14 /* 2^-46 */
-#define P2_59 1.734723475976810E-18 /* 2^-59 */
-#define P2_66 1.355252715606880E-20 /* 2^-66 */
 
-#define P2_5 0.03125                /* 2^-5 */
-#define P2_6 0.015625               /* 2^-6 */
-#define P2_11 4.882812500000000E-04 /* 2^-11 */
-#define P2_15 3.051757812500000E-05 /* 2^-15 */
-#define P2_17 7.629394531250000E-06 /* 2^-17 */
-#define P2_19 1.907348632812500E-06 /* 2^-19 */
-#define P2_20 9.536743164062500E-07 /* 2^-20 */
-#define P2_21 4.768371582031250E-07 /* 2^-21 */
-#define P2_23 1.192092895507810E-07 /* 2^-23 */
-#define P2_24 5.960464477539063E-08 /* 2^-24 */
-#define P2_27 7.450580596923828E-09 /* 2^-27 */
-#define P2_29 1.862645149230957E-09 /* 2^-29 */
-#define P2_30 9.313225746154785E-10 /* 2^-30 */
-#define P2_31 4.656612873077393E-10 /* 2^-31 */
-#define P2_32 2.328306436538696E-10 /* 2^-32 */
-#define P2_33 1.164153218269348E-10 /* 2^-33 */
-#define P2_35 2.910383045673370E-11 /* 2^-35 */
-#define P2_38 3.637978807091710E-12 /* 2^-38 */
-#define P2_39 1.818989403545856E-12 /* 2^-39 */
-#define P2_40 9.094947017729280E-13 /* 2^-40 */
-#define P2_43 1.136868377216160E-13 /* 2^-43 */
-#define P2_48 3.552713678800501E-15 /* 2^-48 */
-#define P2_50 8.881784197001252E-16 /* 2^-50 */
-#define P2_55 2.775557561562891E-17 /* 2^-55 */
 
 /* msm signal id table -------------------------------------------------------*/
 const char *rtcm_msm_sig_gps[32] = {
@@ -644,6 +611,18 @@ const char *rtcm_msm_sig_glo[32] = {
     "", "1C", "1P", "", "", "", "", "2C", "2P", "", "3I", "3Q",
     "3X", "", "", "", "", "", "", "", "", "", "", "",
     "", "", "", "", "", "", "", ""};
+const char* msm_sig_gps[32] = {
+	/* GPS: ref [13] table 3.5-87, ref [14][15] table 3.5-91 */
+	""  ,"1C","1P","1W","1Y","1M",""  ,"2C","2P","2W","2Y","2M", /*  1-12 */
+	""  ,""  ,"2S","2L","2X",""  ,""  ,""  ,""  ,"5I","5Q","5X", /* 13-24 */
+	""  ,""  ,""  ,""  ,""  ,"1S","1L","1X"                      /* 25-32 */
+};
+const char* msm_sig_glo[32] = {
+	/* GLONASS: ref [13] table 3.5-93, ref [14][15] table 3.5-97 */
+	""  ,"1C","1P",""  ,""  ,""  ,""  ,"2C","2P",""  ,"3I","3Q",
+	"3X",""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,
+	""  ,""  ,""  ,""  ,""  ,""  ,""  ,""
+};
 const char *msm_sig_gal[32] = {
     /* Galileo: ref [15] table 3.5-100 */
     "", "1C", "1A", "1B", "1X", "1Z", "", "6C", "6A", "6B", "6X", "6Z",
@@ -752,7 +731,7 @@ static int test_staid(obs_t *obs, int staid)
 }
 
 
-static char *obscodes[] = {
+char *obscodes[] = {
     /* observation code strings */
 
     "", "1C", "1P", "1W", "1Y", "1M", "1N", "1S", "1L", "1E",   /*  0- 9 */

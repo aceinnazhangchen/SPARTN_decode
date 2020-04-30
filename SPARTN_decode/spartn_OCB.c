@@ -44,7 +44,7 @@ void log_ocb_to_table(raw_spartn_t* spartn, OCB_t* ocb) {
 void decode_bias_mask(uint8_t* data, int *pos, uint8_t *mask_array, uint32_t effective_len, uint32_t subType) {
 	int i, offset = *pos;
 	int tab = 4;
-	uint32_t len_flag = getbitu(data, offset, 1);  offset += 1; log(LOG_DEBUG, tab, "len_flag = %d", len_flag);
+	uint32_t len_flag = getbitu(data, offset, 1);  offset += 1; slog(LOG_DEBUG, tab, "len_flag = %d", len_flag);
 	uint32_t max_len = 0;
 	if (len_flag == 0) {
 		max_len = subType ? 5 : 6;
@@ -54,7 +54,7 @@ void decode_bias_mask(uint8_t* data, int *pos, uint8_t *mask_array, uint32_t eff
 	}
 
 	for (i = 0; i < max_len; i++) {
-		mask_array[i] = getbitu(data, offset, 1);  offset += 1; log(LOG_DEBUG, tab, "bias_mask_array[%d] = %d", i, mask_array[i]);
+		mask_array[i] = getbitu(data, offset, 1);  offset += 1; slog(LOG_DEBUG, tab, "bias_mask_array[%d] = %d", i, mask_array[i]);
 		if (i == effective_len - 1) {
 			offset += (max_len - effective_len);
 			break; 
@@ -68,9 +68,9 @@ void decode_phase_bias_block(raw_spartn_t* spartn, uint8_t* mask_array, OCB_Phas
 	int i;
 	for (i = 0; i < effective_len; i++) {
 		if (mask_array[i] == 1) {
-			bias_array[i].SF023_Fix_flag = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF023_Fix_flag = %d", bias_array[i].SF023_Fix_flag);
-			bias_array[i].SF015_Continuity_indicator = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF015_Continuity_indicator = %d", bias_array[i].SF015_Continuity_indicator);
-			bias_array[i].SF020_Phase_bias_correction = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; log(LOG_DEBUG, tab, "SF020_Phase_bias_correction = %f", bias_array[i].SF020_Phase_bias_correction);
+			bias_array[i].SF023_Fix_flag = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF023_Fix_flag = %d", bias_array[i].SF023_Fix_flag);
+			bias_array[i].SF015_Continuity_indicator = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; slog(LOG_DEBUG, tab, "SF015_Continuity_indicator = %d", bias_array[i].SF015_Continuity_indicator);
+			bias_array[i].SF020_Phase_bias_correction = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; slog(LOG_DEBUG, tab, "SF020_Phase_bias_correction = %f", bias_array[i].SF020_Phase_bias_correction);
 		}
 	}
 }
@@ -80,7 +80,7 @@ void decode_code_bias_correction(raw_spartn_t* spartn, uint8_t *mask_array, doub
 	int i;
 	for (i = 0; i < effective_len; i++) {
 		if (mask_array[i] == 1) {
-			bias_array[i] = getbitu(payload, spartn->offset, 11)*0.02 - 20.46;  spartn->offset += 11; log(LOG_DEBUG, tab, "SF029_Code_bias_correction = %f", bias_array[i] );
+			bias_array[i] = getbitu(payload, spartn->offset, 11)*0.02 - 20.46;  spartn->offset += 11; slog(LOG_DEBUG, tab, "SF029_Code_bias_correction = %f", bias_array[i] );
 		}
 	}
 }
@@ -88,24 +88,24 @@ void decode_code_bias_correction(raw_spartn_t* spartn, uint8_t *mask_array, doub
 void decode_orbit_block(raw_spartn_t* spartn, OCB_orbit_t* orbit, uint32_t SF008_Yaw_present_flag, int tab) {
 	uint8_t* payload = spartn->payload;
 	if (spartn->Subtype == 0) {
-		orbit->SF018_SF019_IODE = getbitu(payload, spartn->offset, 8);  spartn->offset += 8; log(LOG_DEBUG, tab, "SF018_IODE = %d", orbit->SF018_SF019_IODE);
+		orbit->SF018_SF019_IODE = getbitu(payload, spartn->offset, 8);  spartn->offset += 8; slog(LOG_DEBUG, tab, "SF018_IODE = %d", orbit->SF018_SF019_IODE);
 	}
 	else if (spartn->Subtype == 1) {
-		orbit->SF018_SF019_IODE = getbitu(payload, spartn->offset, 7);  spartn->offset += 7; log(LOG_DEBUG, tab, "SF019_IODE = %d", orbit->SF018_SF019_IODE);
+		orbit->SF018_SF019_IODE = getbitu(payload, spartn->offset, 7);  spartn->offset += 7; slog(LOG_DEBUG, tab, "SF019_IODE = %d", orbit->SF018_SF019_IODE);
 	}
-	orbit->SF020_radial = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; log(LOG_DEBUG, tab, "SF020_radial = %f", orbit->SF020_radial);
-	orbit->SF020_along = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; log(LOG_DEBUG, tab, "SF020_along = %f", orbit->SF020_along);
-	orbit->SF020_cross = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; log(LOG_DEBUG, tab, "SF020_cross = %f", orbit->SF020_cross);
+	orbit->SF020_radial = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; slog(LOG_DEBUG, tab, "SF020_radial = %f", orbit->SF020_radial);
+	orbit->SF020_along = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; slog(LOG_DEBUG, tab, "SF020_along = %f", orbit->SF020_along);
+	orbit->SF020_cross = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; slog(LOG_DEBUG, tab, "SF020_cross = %f", orbit->SF020_cross);
 	if (SF008_Yaw_present_flag == 1) {
-		orbit->SF021_Satellite_yaw = getbitu(payload, spartn->offset, 6);  spartn->offset += 6; log(LOG_DEBUG, tab, "SF021 = %d", orbit->SF021_Satellite_yaw * 6);
+		orbit->SF021_Satellite_yaw = getbitu(payload, spartn->offset, 6);  spartn->offset += 6; slog(LOG_DEBUG, tab, "SF021 = %d", orbit->SF021_Satellite_yaw * 6);
 	}
 }
 //Table 6.6 clock block 
 void decode_clock_block(raw_spartn_t* spartn, OCB_clock_t* clock, int tab) {
 	uint8_t* payload = spartn->payload;
-	clock->SF022_IODE_continuity = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF022_IODE_continuity = %d", clock->SF022_IODE_continuity);
-	clock->SF020_Clock_correction = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; log(LOG_DEBUG, tab, "SF020_Clock_correction = %f", clock->SF020_Clock_correction);
-	clock->SF024_User_range_error = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF024_User_range_error = %d", clock->SF024_User_range_error);
+	clock->SF022_IODE_continuity = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; slog(LOG_DEBUG, tab, "SF022_IODE_continuity = %d", clock->SF022_IODE_continuity);
+	clock->SF020_Clock_correction = getbitu(payload, spartn->offset, 14)*0.002 - 16.382;  spartn->offset += 14; slog(LOG_DEBUG, tab, "SF020_Clock_correction = %f", clock->SF020_Clock_correction);
+	clock->SF024_User_range_error = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; slog(LOG_DEBUG, tab, "SF024_User_range_error = %d", clock->SF024_User_range_error);
 }
 //Table 6.7 GPS bias block
 void decode_GPS_bias_block(raw_spartn_t* spartn, OCB_GPS_bias_t* GPS_bias, int tab) {
@@ -130,12 +130,12 @@ void decode_GLONASS_bias_block(raw_spartn_t* spartn, OCB_GLONASS_bias_t* GLONASS
 //Table 6.4 satellite block
 void decode_satellite_block(raw_spartn_t* spartn, OCB_Satellite_t* sat, uint32_t SF008_Yaw_present_flag, int tab) {
 	uint8_t* payload = spartn->payload;
-	log(LOG_DEBUG, tab, "PRN_ID = %d", sat->PRN_ID);
-	sat->SF013_DNU = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF013_DNU = %d", sat->SF013_DNU);
-	sat->SF014_Orbit_block_0 = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF014_Orbit_block_0 = %d", sat->SF014_Orbit_block_0);
-	sat->SF014_Clock_block_1 = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF014_Clock_block_1 = %d", sat->SF014_Clock_block_1);
-	sat->SF014_Bias_block_2 = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; log(LOG_DEBUG, tab, "SF014_Bias_block_2 = %d", sat->SF014_Bias_block_2);
-	sat->SF015_Continuity_indicator = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; log(LOG_DEBUG, tab, "SF015 = %d", sat->SF015_Continuity_indicator);
+	slog(LOG_DEBUG, tab, "PRN_ID = %d", sat->PRN_ID);
+	sat->SF013_DNU = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF013_DNU = %d", sat->SF013_DNU);
+	sat->SF014_Orbit_block_0 = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF014_Orbit_block_0 = %d", sat->SF014_Orbit_block_0);
+	sat->SF014_Clock_block_1 = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF014_Clock_block_1 = %d", sat->SF014_Clock_block_1);
+	sat->SF014_Bias_block_2 = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF014_Bias_block_2 = %d", sat->SF014_Bias_block_2);
+	sat->SF015_Continuity_indicator = getbitu(payload, spartn->offset, 3);  spartn->offset += 3; slog(LOG_DEBUG, tab, "SF015 = %d", sat->SF015_Continuity_indicator);
 	//Table 6.5 orbit block 
 	if (sat->SF014_Orbit_block_0) {
 		decode_orbit_block(spartn, &sat->orbit, SF008_Yaw_present_flag, tab+1);
@@ -159,12 +159,12 @@ void decode_satellite_block(raw_spartn_t* spartn, OCB_Satellite_t* sat, uint32_t
 //Table 6.3 Header block 
 void decode_OCB_hearder(raw_spartn_t* spartn, OCB_header_t* ocb_header,int tab) {
 	uint8_t* payload = spartn->payload;
-	ocb_header->SF005_SIOU = getbitu(payload, spartn->offset, 9); spartn->offset += 9; log(LOG_DEBUG, tab, "SF005_SIOU = %d", ocb_header->SF005_SIOU);
-	ocb_header->SF010_EOS = getbitu(payload, spartn->offset, 1); spartn->offset += 1; log(LOG_DEBUG, tab, "SF010_EOS = %d", ocb_header->SF010_EOS);
-	ocb_header->SF069_Reserved = getbitu(payload, spartn->offset, 1); spartn->offset += 1; log(LOG_DEBUG, tab, "SF069_Reserved = %d", ocb_header->SF069_Reserved);
-	ocb_header->SF008_Yaw_present_flag = getbitu(payload, spartn->offset, 1); spartn->offset += 1; log(LOG_DEBUG, tab, "SF008_Yaw_present_flag = %d", ocb_header->SF008_Yaw_present_flag);
-	ocb_header->SF009_Satellite_reference_datum = getbitu(payload, spartn->offset, 1); spartn->offset += 1; log(LOG_DEBUG, tab, "SF009_Satellite_reference_datum = %d", ocb_header->SF009_Satellite_reference_datum);
-	ocb_header->SF016_SF017_Ephemeris_type = getbitu(payload, spartn->offset, 2); spartn->offset += 2; log(LOG_DEBUG, tab, "SF016_SF017_Ephemeris_type = %d", ocb_header->SF016_SF017_Ephemeris_type);
+	ocb_header->SF005_SIOU = getbitu(payload, spartn->offset, 9); spartn->offset += 9; slog(LOG_DEBUG, tab, "SF005_SIOU = %d", ocb_header->SF005_SIOU);
+	ocb_header->SF010_EOS = getbitu(payload, spartn->offset, 1); spartn->offset += 1; slog(LOG_DEBUG, tab, "SF010_EOS = %d", ocb_header->SF010_EOS);
+	ocb_header->SF069_Reserved = getbitu(payload, spartn->offset, 1); spartn->offset += 1; slog(LOG_DEBUG, tab, "SF069_Reserved = %d", ocb_header->SF069_Reserved);
+	ocb_header->SF008_Yaw_present_flag = getbitu(payload, spartn->offset, 1); spartn->offset += 1; slog(LOG_DEBUG, tab, "SF008_Yaw_present_flag = %d", ocb_header->SF008_Yaw_present_flag);
+	ocb_header->SF009_Satellite_reference_datum = getbitu(payload, spartn->offset, 1); spartn->offset += 1; slog(LOG_DEBUG, tab, "SF009_Satellite_reference_datum = %d", ocb_header->SF009_Satellite_reference_datum);
+	ocb_header->SF016_SF017_Ephemeris_type = getbitu(payload, spartn->offset, 2); spartn->offset += 2; slog(LOG_DEBUG, tab, "SF016_SF017_Ephemeris_type = %d", ocb_header->SF016_SF017_Ephemeris_type);
 	if (spartn->Subtype == 0) {
 		decode_GPS_satellite_mask(payload, &spartn->offset, ocb_header->SF011_SF012_satellite_mask, &ocb_header->Satellite_mask_len);
 	}
@@ -195,8 +195,8 @@ int decode_OCB_message(raw_spartn_t* spartn)
 		}
 	}
 	transform_spartn_ssr(spartn);
-	log(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
-	log(LOG_DEBUG, tab, "size of OCB_t = %d ", sizeof(OCB_t));
+	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
+	slog(LOG_DEBUG, tab, "size of OCB_t = %d ", sizeof(OCB_t));
 	log_ocb_to_table(spartn, ocb);
 	return 1;
 }

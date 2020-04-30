@@ -721,7 +721,7 @@ extern void tidedisp(gtime_t tutc, const double *rr, int opt,const double *odisp
     //    matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
     //    for (i=0;i<3;i++) dr[i]+=drt[i];
     //}
-    printf("tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
+    //printf("tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
 }
 
 /* nominal yaw-angle ---------------------------------------------------------*/

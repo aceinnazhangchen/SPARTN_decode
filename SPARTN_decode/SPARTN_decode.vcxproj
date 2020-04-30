@@ -72,6 +72,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ReferencePath>$(ProjectDir)\SPARTN_decode;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ReferencePath>$(ProjectDir)\SPARTN_decode;$(ReferencePath)</ReferencePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -106,9 +109,9 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -122,30 +125,39 @@
     <ClCompile Include="bits.c" />
     <ClCompile Include="crc.c" />
     <ClCompile Include="ephemeris.c" />
+    <ClCompile Include="sapcorda_ssr.cpp" />
     <ClCompile Include="GenVRSObs.c" />
     <ClCompile Include="gnss_math.c" />
     <ClCompile Include="log.c" />
+    <ClCompile Include="main.c" />
     <ClCompile Include="model.c" />
+    <ClCompile Include="rinex.c" />
     <ClCompile Include="rtcm.c" />
+    <ClCompile Include="rtcm3e.c" />
     <ClCompile Include="spartn_common.c" />
     <ClCompile Include="spartn_GAD.c" />
     <ClCompile Include="spartn_HPAC.c" />
     <ClCompile Include="spartn_LPAC.c" />
     <ClCompile Include="spartn_OCB.c" />
     <ClCompile Include="spartn.c" />
+    <ClCompile Include="stringex.cpp" />
     <ClCompile Include="tides.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bits.h" />
     <ClInclude Include="crc.h" />
     <ClInclude Include="ephemeris.h" />
+    <ClInclude Include="export_ssr.h" />
+    <ClInclude Include="sapcorda_ssr.h" />
     <ClInclude Include="GenVRSObs.h" />
     <ClInclude Include="gnss_math.h" />
     <ClInclude Include="log.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="rinex.h" />
     <ClInclude Include="rtcm.h" />
     <ClInclude Include="rtklib_core.h" />
     <ClInclude Include="spartn.h" />
+    <ClInclude Include="stringex.h" />
     <ClInclude Include="tides.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

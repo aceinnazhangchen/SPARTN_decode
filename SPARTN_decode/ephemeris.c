@@ -652,7 +652,7 @@ extern void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int 
         //e[2] = vec[i].rs[2] - obs->pos[2];
         //r = norm(e, 3);
         //double dr = fabs(r-pr)/CLIGHT*3.0e3;
-        printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f,%10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
+        //printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f,%10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
     }
 }
 
@@ -741,7 +741,7 @@ extern int satposs_sap_rcv(gtime_t teph, double *rcvpos, vec_t *vec, nav_t *nav,
         else
             nsat++;
 
-        printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f, %14.3f, %10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, rho, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
+        //printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f, %14.3f, %10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, rho, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
 
     }
     return nsat;
@@ -971,7 +971,7 @@ extern int compute_vector_data(obs_t *obs, vec_t *vec)
     double blh[3] = { 0.0 };
 
     ecef2pos(obs->pos, blh);
-    printf("rcvpos=%13.3f %13.3f %13.3f\n", obs->pos[0], obs->pos[1], obs->pos[2]);
+    //printf("rcvpos=%13.3f %13.3f %13.3f\n", obs->pos[0], obs->pos[1], obs->pos[2]);
     for (i = 0; i < obs->n; ++i)
     {
         sys = satsys(obs->data[i].sat, &prn);
@@ -979,7 +979,7 @@ extern int compute_vector_data(obs_t *obs, vec_t *vec)
         if (norm(vecd->rs, 3) < 0.01) continue;
         /* compute geometric-range and azimuth/elevation angle */
         vecd->r = geodist(vecd->rs, obs->pos, vecd->e);
-        printf("%s sat=%c%2d rs=%13.3f dts=%12.3f\n", time_str(obs->time, 6), sys2char(sys), prn, vecd->r, vecd->dts[0] * CLIGHT);
+        //printf("%s sat=%c%2d rs=%13.3f dts=%12.3f\n", time_str(obs->time, 6), sys2char(sys), prn, vecd->r, vecd->dts[0] * CLIGHT);
 		vecd->r -= CLIGHT * vecd->dts[0];
         vecd->rate = geovel(vecd->rs, obs->pos, vecd->e);
 

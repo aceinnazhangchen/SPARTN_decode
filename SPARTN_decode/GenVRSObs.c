@@ -453,9 +453,12 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         obs_vrs->data[i].L[0]    = (vec_vrs[i].r + strop - tecu2m1 * stec - grav_delay) / w1 + pbias[0] + phw;
         obs_vrs->data[i].L[1]    = (vec_vrs[i].r + strop - tecu2m2 * stec - grav_delay) / w2 + pbias[1] + phw;
 
-        printf("obs: %12i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%14.4f,%14.4f,%14.4f,%14.4f\n",
-            obs_vrs->time.time, obs_vrs->data[i].sat, soltide, phw*w1, phw*w2, grav_delay, strop,
-            tecu2m1 * stec, tecu2m2 * stec, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+        //printf("obs: %12i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%14.4f,%14.4f,%14.4f,%14.4f\n",
+        //    obs_vrs->time.time, obs_vrs->data[i].sat, soltide, phw*w1, phw*w2, grav_delay, strop,
+        //    tecu2m1 * stec, tecu2m2 * stec, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+
+		//printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+		//	obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
     }
     printf("\n");
     return 1;
