@@ -80,7 +80,7 @@ void input_eph(unsigned char * buffer, uint32_t len)
 	sapcorda_ssr::getInstance()->input_eph_stream(buffer, len);
 }
 
-unsigned char* input_gga(char * buffer, uint32_t *len)
+void input_gga(char * buffer, unsigned char*out_buffer, uint32_t *len)
 {
 	std::string gga = buffer;
 	//double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
@@ -91,7 +91,7 @@ unsigned char* input_gga(char * buffer, uint32_t *len)
 	std::vector<std::string> gga_split = split(gga, ",");
 	if (gga_split.size() != 15)
 	{
-		return NULL;
+		return;
 	}
 	char  ns = 'N', ew = 'E';
 	double lat = atof(gga_split[2].c_str());
@@ -107,10 +107,10 @@ unsigned char* input_gga(char * buffer, uint32_t *len)
 
 	pos2ecef(pos, xyz);
 
-	return merge_ssr_to_obs(xyz, len);
+	merge_ssr_to_obs(xyz,out_buffer,len);
 }
 
-unsigned char* merge_ssr_to_obs(double* rovpos,uint32_t *len)
+unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32_t *len)
 {
 	vec_t vec_vrs[MAXOBS] = { 0.0 };
 	gtime_t teph = timeget();
@@ -172,7 +172,6 @@ unsigned char* merge_ssr_to_obs(double* rovpos,uint32_t *len)
 	}
 
 	rtcm_t out_rtcm = { 0 };
-	unsigned char buffer[1200] = { 0 };
-	*len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, buffer);
-	return buffer;
+	*len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, out_buffer);
+	return out_buffer;
 }
