@@ -338,8 +338,8 @@ void close_lpac_table_file();
 int gen_rtcm_vrsdata(obs_t * obs, rtcm_t * rtcm, unsigned char * buff);
 
 int read_obs_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int stnID);
-int sread_eph_rtcm(unsigned char * buffer, uint32_t len, gnss_rtcm_t * rtcm, int ns_gps, int ns_g);
-int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int ns_gps, int ns_g);
+int sread_eph_rtcm(unsigned char * buffer, uint32_t len, gnss_rtcm_t * rtcm, uint32_t ns_gps, uint32_t ns_g);
+int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, uint32_t ns_gps, uint32_t ns_g);
 int sread_ssr_sapcorda(unsigned char * buffer, uint32_t len, raw_spartn_t * spartn, spartn_t * spartn_out, uint32_t * ssr_num);
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn, uint32_t *ssr_num);
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm);

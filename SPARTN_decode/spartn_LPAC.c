@@ -24,7 +24,7 @@ void close_lpac_table_file() {
 }
 
 void log_lpac_to_table(raw_spartn_t* spartn, LPAC_t* lpac) {
-	int i,j;
+	uint32_t i,j;
 	uint32_t time = spartn->GNSS_time_type;
 	for (i = 0; i < lpac->header.SF071_LPAC_area_count; i++) {
 		LPAC_area_t* area = &lpac->areas[i];
@@ -63,7 +63,7 @@ void decode_LPAC_grid_node_VTEC_block(raw_spartn_t* spartn, LPAC_VTEC_t* VTEC, i
 
 //Table 6.23 LPAC area block
 void decode_LPAC_area_block(raw_spartn_t* spartn, LPAC_area_t* area,int tab) {
-	int i;
+	uint32_t i;
 	uint8_t* payload = spartn->payload;
 	//Table 6.24 LPAC area data block 
 	area->SF072_LPAC_area_ID = getbitu(payload, spartn->offset, 2); spartn->offset += 2; slog(LOG_DEBUG, tab, "SF072_LPAC_area_ID = %d", area->SF072_LPAC_area_ID);

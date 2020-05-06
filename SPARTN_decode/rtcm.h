@@ -383,6 +383,8 @@ int input_rtcm3_data(rtcm_t *rtcm, unsigned char data, obs_t *obs, nav_t *nav);
 int input_rtcm3(unsigned char data, unsigned int stnID, gnss_rtcm_t *gnss);
 
 unsigned int rtcm_getbitu(const unsigned char *buff, int pos, int len);
+void setbitu(unsigned char *buff, int pos, int len, unsigned int data);
+void setbits(unsigned char *buff, int pos, int len, int data);
 
 /* glo frquent number function */
 void set_glo_frq(unsigned char prn, int frq);
@@ -433,6 +435,9 @@ void set_approximate_time(int year, int doy, rtcm_t *rtcm);
 int add_obs(obsd_t* obsd, obs_t* obs);
 int add_eph(eph_t* eph, nav_t* nav);
 int add_geph(geph_t* eph, nav_t* nav);
+
+char *code2obs(int sys, unsigned char code, int *freq);
+unsigned int rtk_crc24q(const unsigned char *buff, int len);
 
 /*--------------------------------------------------------------------*/
 int gen_rtcm3(rtcm_t* rtcm, obs_t *obs, int type, int sync);

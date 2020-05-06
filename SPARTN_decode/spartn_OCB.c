@@ -43,7 +43,8 @@ void log_ocb_to_table(raw_spartn_t* spartn, OCB_t* ocb) {
 }
 
 void decode_bias_mask(uint8_t* data, int *pos, uint8_t *mask_array, uint32_t effective_len, uint32_t subType) {
-	int i, offset = *pos;
+	uint32_t i;
+	int offset = *pos;
 	int tab = 4;
 	uint32_t len_flag = getbitu(data, offset, 1);  offset += 1; slog(LOG_DEBUG, tab, "len_flag = %d", len_flag);
 	uint32_t max_len = 0;
@@ -66,7 +67,7 @@ void decode_bias_mask(uint8_t* data, int *pos, uint8_t *mask_array, uint32_t eff
 //Table 6.9 phase bias block 
 void decode_phase_bias_block(raw_spartn_t* spartn, uint8_t* mask_array, OCB_Phase_bias_t* bias_array, uint32_t effective_len,int tab) {
 	uint8_t* payload = spartn->payload;
-	int i;
+	uint32_t i;
 	for (i = 0; i < effective_len; i++) {
 		if (mask_array[i] == 1) {
 			bias_array[i].SF023_Fix_flag = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF023_Fix_flag = %d", bias_array[i].SF023_Fix_flag);
@@ -78,7 +79,7 @@ void decode_phase_bias_block(raw_spartn_t* spartn, uint8_t* mask_array, OCB_Phas
 //Code bias correction
 void decode_code_bias_correction(raw_spartn_t* spartn, uint8_t *mask_array, double *bias_array, uint32_t effective_len, int tab) {
 	uint8_t* payload = spartn->payload;
-	int i;
+	uint32_t i;
 	for (i = 0; i < effective_len; i++) {
 		if (mask_array[i] == 1) {
 			bias_array[i] = getbitu(payload, spartn->offset, 11)*0.02 - 20.46;  spartn->offset += 11; slog(LOG_DEBUG, tab, "SF029_Code_bias_correction = %f", bias_array[i] );

@@ -117,7 +117,7 @@ unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32
 	sap_ssr_t *sap_ssr = sapcorda_ssr::getInstance()->m_spartn_out.ssr;
 	gad_ssr_t *sap_gad = sapcorda_ssr::getInstance()->m_spartn_out.ssr_gad;
 	nav_t *nav = &sapcorda_ssr::getInstance()->m_rtcm.nav;
-	int i, j, nsat;
+	uint32_t i, j, nsat;
 	uint8_t ssr_offset = sapcorda_ssr::getInstance()->m_spartn_out.ssr_offset;
 	for (i = 0; i < ssr_offset; i++)
 	{
@@ -178,7 +178,7 @@ unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32
 
 void input_ssr_test(unsigned char* buffer, uint32_t len)
 {
-	for (int i = 0; i < len; i++) {
+	for (uint32_t i = 0; i < len; i++) {
 		printf("%#X ", buffer[i]);
 	}
 }
@@ -186,7 +186,7 @@ void input_ssr_test(unsigned char* buffer, uint32_t len)
 void input_gga_test(char* buffer, unsigned char* out_buffer, uint32_t* len) {
 	srand((int)time(0));
 	*len = 800 + random(300);
-	for (int i = 0; i < *len; i++) {
+	for (uint32_t i = 0; i < *len; i++) {
 		out_buffer[i] = random(255);
 	}
 }

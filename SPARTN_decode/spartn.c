@@ -175,7 +175,7 @@ int input_spartn_data(raw_spartn_t* spartn, spartn_t* spartn_out, uint8_t data) 
 int check_nav(nav_t *nav, sap_ssr_t *sap_ssr)
 {
     double time0 = sap_ssr[0].t0[1];
-    int i,eph_n=0, geph_n = 0;
+    unsigned int i,eph_n=0, geph_n = 0;
     for (i = 0; i < nav->n_gps; i++)
     {
         double dt = fabs(time0 - nav->eph[i].toe.time);
@@ -383,12 +383,12 @@ int read_obs_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int stnID)
     return ret;
 }
 
-int sread_eph_rtcm(unsigned char* buffer, uint32_t len, gnss_rtcm_t *rtcm, int ns_gps, int ns_g)
+int sread_eph_rtcm(unsigned char* buffer, uint32_t len, gnss_rtcm_t *rtcm, uint32_t ns_gps, uint32_t ns_g)
 {
 	int ret = 0;
 	int iter_ssr = 0;
 	char c = ' ';
-	int n;
+	uint32_t n;
 	for (n = 0; n < len; ++n)
 	{
 		c = buffer[n];
@@ -401,7 +401,7 @@ int sread_eph_rtcm(unsigned char* buffer, uint32_t len, gnss_rtcm_t *rtcm, int n
 	return ret;
 }
 
-int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int ns_gps, int ns_g)
+int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, uint32_t ns_gps, uint32_t ns_g)
 {
     int ret = 0;
     int iter_ssr = 0;
@@ -429,7 +429,7 @@ int sread_ssr_sapcorda(unsigned char* buffer,uint32_t len, raw_spartn_t *spartn,
 {
 	int ret = 0;
 	uint8_t c = 0;
-	int n,i;
+	uint32_t n,i;
 
 	for(n = 0; n < len; ++n)
 	{
