@@ -18,7 +18,7 @@ int decode_Dynamic_Key(raw_spartn_t* spartn) {
 }
 
 int decode_Group_Authentication(raw_spartn_t* spartn) {
-    int i, bi, tab = 2;
+    int tab = 2;
     uint8_t* payload = spartn->buff + spartn->Payload_offset;
     int offset = 0;
     //Table 6.27 Message ID block 

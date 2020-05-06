@@ -112,7 +112,7 @@ void input_gga(char * buffer, unsigned char*out_buffer, uint32_t *len)
 
 unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32_t *len)
 {
-	vec_t vec_vrs[MAXOBS] = { 0.0 };
+	vec_t vec_vrs[MAXOBS] = { 0 };
 	gtime_t teph = timeget();
 	sap_ssr_t *sap_ssr = sapcorda_ssr::getInstance()->m_spartn_out.ssr;
 	gad_ssr_t *sap_gad = sapcorda_ssr::getInstance()->m_spartn_out.ssr_gad;
@@ -167,11 +167,26 @@ unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32
 
 	int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0);
 	for (i = 0; i < obs_vrs->n; ++i) {
-		printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+		printf("obs: %12I64i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
 			obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
 	}
 
 	rtcm_t out_rtcm = { 0 };
 	*len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, out_buffer);
 	return out_buffer;
+}
+
+void input_ssr_test(unsigned char* buffer, uint32_t len)
+{
+	for (int i = 0; i < len; i++) {
+		printf("%#X ", buffer[i]);
+	}
+}
+#define random(x) (rand()%x)
+void input_gga_test(char* buffer, unsigned char* out_buffer, uint32_t* len) {
+	srand((int)time(0));
+	*len = 800 + random(300);
+	for (int i = 0; i < *len; i++) {
+		out_buffer[i] = random(255);
+	}
 }

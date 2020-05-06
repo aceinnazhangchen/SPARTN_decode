@@ -314,6 +314,9 @@ typedef struct {
 	spartn_t* spartn_out;
 } raw_spartn_t;
 
+void decode_GPS_satellite_mask(uint8_t* data, int *pos, uint8_t* satellite_mask, uint8_t *satellite_mask_len);
+void decode_GLONASS_satellite_mask(uint8_t* data, int *pos, uint8_t* satellite_mask, uint8_t *satellite_mask_len);
+
 int decode_OCB_message(raw_spartn_t* spartn);
 int decode_HPAC_message(raw_spartn_t* spartn);
 int decode_GAD_message(raw_spartn_t* spartn);
@@ -340,6 +343,9 @@ int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int ns_gps, int ns_g);
 int sread_ssr_sapcorda(unsigned char * buffer, uint32_t len, raw_spartn_t * spartn, spartn_t * spartn_out, uint32_t * ssr_num);
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn, uint32_t *ssr_num);
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm);
+
+void transform_spartn_ssr(raw_spartn_t* raw_spartn);
+void expanded_full_time(raw_spartn_t* raw_spartn);
 
 #define SSR_SAP 
 #define DAY_SECONDS 86400

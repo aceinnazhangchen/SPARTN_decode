@@ -1,5 +1,6 @@
 #include "spartn.h"
 #include "log.h"
+#include "bits.h"
 
 FILE*  hpac_table_file = NULL;
 

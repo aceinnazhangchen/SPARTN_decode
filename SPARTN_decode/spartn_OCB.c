@@ -1,5 +1,6 @@
 #include "spartn.h"
 #include "log.h"
+#include "bits.h"
 
 FILE*  ocb_table_file = NULL;
 
