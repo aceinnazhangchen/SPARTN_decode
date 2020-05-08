@@ -22,8 +22,6 @@
 *           2017/04/11 1.2  fix bug on calling geterp() in timdedisp()
 *-----------------------------------------------------------------------------*/
 #include "tides.h"
-#define RHO_DEG     180.0 / PI
-#define RHO_SEC     3600.0 * 180.0 / PI
 #define MJD_J2000   51544.5
 #define SQR(x)      ((x)*(x))
 #define AS2R        (D2R/3600.0)    /* arc sec to radian */
@@ -250,30 +248,22 @@ static void nut_iau1980(double t, const double *f, double *dpsi, double *deps)
     *deps *= 1E-4*AS2R;
 }
 
-//static void NutMatrix(double Mjd_TT, double *dpsi, double *deps)
-//{
-//
-//    const double ep[] = { 2000,1,1,12,0,0 };
-//    double mjd;
-//    mjd = 51544.5 + (timediff(gpst2utc(time), epoch2time(ep))) / 86400.0;
-//
-//    const double T = (mjd - MJD_J2000) / 36525.0;
-//
-//    double ls = 2.0*PI*Frac(0.993133 + 99.997306*T);
-//    double D = 2.0*PI*Frac(0.827362 + 1236.853087*T);
-//    double F = 2.0*PI*Frac(0.259089 + 1342.227826*T);
-//    double N = 2.0*PI*Frac(0.347346 - 5.372447*T);
-//
-//    double dpsi = (-17.200*sin(N) - 1.319*sin(2 * (F - D + N)) - 0.227*sin(2 * (F + N))
-//        + 0.206*sin(2 * N) + 0.143*sin(ls)) / RHO_SEC;
-//    double deps = (+9.203*cos(N) + 0.574*cos(2 * (F - D + N)) + 0.098*cos(2 * (F + N))
-//        - 0.090*cos(2 * N)) / RHO_SEC;
-//
-//    double eps = 0.4090928 - 2.2696E-4*T;
-//
-//    return;
-//}
+static void nutmatrix(double T, double *dpsi, double *deps)
+{
 
+    double ls = 2.0*PI*fmod(0.993133 +   99.997306*T,1.0);
+    double D  = 2.0*PI*fmod(0.827362 + 1236.853087*T,1.0);
+    double F  = 2.0*PI*fmod(0.259089 + 1342.227826*T,1.0);
+    double N  = 2.0*PI*fmod(0.347346 -    5.372447*T,1.0);
+
+    *dpsi = (-17.200*sin(N) - 1.319*sin(2 * (F - D + N)) - 0.227*sin(2 * (F + N))
+                  + 0.206*sin(2 * N) + 0.143*sin(ls)) * AS2R;
+
+    *deps = (+9.203*cos(N) + 0.574*cos(2 * (F - D + N)) + 0.098*cos(2 * (F + N))
+                  - 0.090*cos(2 * N)) *AS2R;
+
+    return;
+}
 
 /* get earth rotation parameter values -----------------------------------------
 * get earth rotation parameter values
@@ -366,14 +356,18 @@ void eci2ecef(gtime_t tutc, const double *erpv, double *U, double *gmst)
     /* iau 1976 precession */
     ze = (2306.2181*t + 0.30188*t2 + 0.017998*t3)*AS2R;
     th = (2004.3109*t - 0.42665*t2 - 0.041833*t3)*AS2R;
-    z = (2306.2181*t + 1.09468*t2 + 0.018203*t3)*AS2R;
+    z  = (2306.2181*t + 1.09468*t2 + 0.018203*t3)*AS2R;
     eps = (84381.448 - 46.8150*t - 0.00059*t2 + 0.001813*t3)*AS2R;
+    //eps = (84381.448 - 46.8150*t)*AS2R;
     Rz(-z, R1); Ry(th, R2); Rz(-ze, R3);
     matmul("NN", 3, 3, 3, 1.0, R1, R2, 0.0, R);
     matmul("NN", 3, 3, 3, 1.0, R, R3, 0.0, P); /* P=Rz(-z)*Ry(th)*Rz(-ze) */
 
     /* iau 1980 nutation */
     nut_iau1980(t, f, &dpsi, &deps);
+
+    //nutmatrix(t, &dpsi, &deps);
+
     Rx(-eps - deps, R1); Rz(-dpsi, R2); Rx(eps, R3);
     matmul("NN", 3, 3, 3, 1.0, R1, R2, 0.0, R);
     matmul("NN", 3, 3, 3, 1.0, R, R3, 0.0, N); /* N=Rx(-eps)*Rz(-dspi)*Rx(eps) */
@@ -450,9 +444,6 @@ void sunmoonpos(gtime_t tutc, const double *erpv, double *rsun,double *rmoon, do
 {
     gtime_t tut;
     double rs[3], rm[3], U[9], gmst_;
-
-    // trace(4, "sunmoonpos: tutc=%s\n", time_str(tutc, 3));
-
     tut = timeadd(tutc, erpv[2]); /* utc -> ut1 */
 
     /* sun and moon position in eci */
@@ -462,7 +453,7 @@ void sunmoonpos(gtime_t tutc, const double *erpv, double *rsun,double *rmoon, do
     eci2ecef(tutc, erpv, U, &gmst_);
 
     /* sun and moon postion in ecef */
-    if (rsun) matmul("NN", 3, 1, 3, 1.0, U, rs, 0.0, rsun);
+    if (rsun)  matmul("NN", 3, 1, 3, 1.0, U, rs, 0.0, rsun);
     if (rmoon) matmul("NN", 3, 1, 3, 1.0, U, rm, 0.0, rmoon);
     if (gmst) *gmst = gmst_;
 }
@@ -721,7 +712,7 @@ extern void tidedisp(gtime_t tutc, const double *rr, int opt,const double *odisp
     //    matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
     //    for (i=0;i<3;i++) dr[i]+=drt[i];
     //}
-    printf("tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
+    //printf("tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
 }
 
 /* nominal yaw-angle ---------------------------------------------------------*/
@@ -891,7 +882,7 @@ extern int model_phw_bnc(gtime_t time, int sat, const char *type, int opt,
 /* phase windup model --------------------------------------------------------*/
 extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_m, const double *dSatVelocity_mps, const double *rr, double *phw)
 {
-    double dr[3], ds[3], drs[3], r[3], dRcvrPosLLH[3], cosp, ph;
+    double dr[3], ds[3], drs[3], r[3], dRcvrPosLLH[3];
     double dMatNegRotY[9] = { 0, 0, 1, 1, 1, -1, 2, 2, 1};
     double dMatDirVec1[9], dMatDirVec2[9], R2[9], R3[9];
     int i;
@@ -911,26 +902,25 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
     Ry(dRotValueR2_rad, R2); 
     Rz(dRotValueR3_rad, R3);
 
-    matmul("NN", 3, 3, 3, 1.0, dMatNegRotY, R2, 0.0, dMatDirVec1);
+    matmul("NT", 3, 3, 3, 1.0, dMatNegRotY, R2, 0.0, dMatDirVec1);
     // Matrix of unit vectors (NEU)
-    matmul("NN", 3, 3, 3, 1.0, dMatDirVec1, R3, 0.0, dMatDirVec2);
+    matmul("NT", 3, 3, 3, 1.0, dMatDirVec1, R3, 0.0, dMatDirVec2);
 
     // Unit vector b (north) 
     double dTempRcvrNorthVec[3];
     double dRcvrNorthUnitVec_b[3];
     dTempRcvrNorthVec[0] = dMatDirVec2[0];
-    dTempRcvrNorthVec[1] = dMatDirVec2[1];
-    dTempRcvrNorthVec[2] = dMatDirVec2[2];
+    dTempRcvrNorthVec[1] = dMatDirVec2[3];
+    dTempRcvrNorthVec[2] = dMatDirVec2[6];
     if (!normv3(dTempRcvrNorthVec, dRcvrNorthUnitVec_b)) return 0;
 
     // Unit vector a (east) 
    double dTempRcvrEastVec[3];
    double dRcvrEastUnitVec_a[3];
-   dTempRcvrEastVec[0] = dMatDirVec2[3];
+   dTempRcvrEastVec[0] = dMatDirVec2[1];
    dTempRcvrEastVec[1] = dMatDirVec2[4];
-   dTempRcvrEastVec[2] = dMatDirVec2[5];
+   dTempRcvrEastVec[2] = dMatDirVec2[7];
    if (!normv3(dTempRcvrEastVec, dRcvrEastUnitVec_a)) return 0;
-   //SAPALIB::C_Utilities::UnitVec(dTempRcvrEastVec, dRcvrEastUnitVec_a);
 
    // Compute local satellite coordinate system (Unit vectors)
    //-----------------------------------------------------------
@@ -943,7 +933,7 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
    dSatMcUnitVec_k[2] *= (-1.0);
 
    // Unit vector e (Velocity to Position Satellite) considering earth rotation effect.
-// Note: This unit vector replaces the unit vector computed with the sun position.
+   // Note: This unit vector replaces the unit vector computed with the sun position.
    double dSatVelUnitVec_e[3];
    double dSatVel_eci[3];
 
@@ -1000,7 +990,7 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
    double dZeta = dot(dSatRcvrUnitVec_p, dVecXDipole,3);
 
    // deltaPhi
-   double dSatDipoleNorm  = norm(dSatDipole,3);
+   double dSatDipoleNorm  = norm(dSatDipole, 3);
    double dRcvrDipoleNorm = norm(dRcvrDipole,3);
 
    double dTheta = dot(dSatDipole, dRcvrDipole, 3) / (dSatDipoleNorm * dRcvrDipoleNorm);
@@ -1015,7 +1005,7 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
    //---------------------------------
    double dN_cyc = 0.0;
    double dPrevPhaseWindupCorr_cyc = 0.0;
-   int   bIsPrevPhaseWindUpValid = 1;
+   int   bIsPrevPhaseWindUpValid   = 1;
 
    dPrevPhaseWindupCorr_cyc = *phw;
 
@@ -1026,8 +1016,9 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
    }
 
    *phw = dDeltaPhi_cyc + dN_cyc;
-    //*phw = ph + floor(*phw - ph + 0.5); /* in cycle */
 
+   if (*phw > 0.5)  *phw -= 1.0;
+   if (*phw < -0.5) *phw += 1.0;
     //printf("phw: sat=%3i, phw=%.3f\n", sat, *phw);
     return 1;
 }

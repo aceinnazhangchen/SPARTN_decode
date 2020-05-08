@@ -30,6 +30,7 @@ typedef struct {
 	double r;          /* vector */
 	double rate;
 	double tro;        /* tropospheric */
+    double phw;
 }vec_t;
 
 /* compute satellit position */

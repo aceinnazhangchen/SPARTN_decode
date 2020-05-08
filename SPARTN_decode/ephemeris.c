@@ -741,7 +741,7 @@ extern int satposs_sap_rcv(gtime_t teph, double *rcvpos, vec_t *vec, nav_t *nav,
         else
             nsat++;
 
-        printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f, %14.3f, %10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, rho, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
+        //printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f, %14.3f, %10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, rho, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
 
     }
     return nsat;
@@ -761,9 +761,9 @@ static int satpos_sap_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
     }
 
 
-    t1 = fmod(time.time + time.sec, 86400.0) - fmod(ssr->t0[0], 86400.0);
-    t2 = fmod(time.time + time.sec, 86400.0) - fmod(ssr->t0[1], 86400.0);
-    t3 = fmod(time.time + time.sec, 86400.0) - fmod(ssr->t0[2], 86400.0);
+    t1 = fmod(time.time + time.sec, 43200.0) - fmod(ssr->t0[0], 43200.0);
+    t2 = fmod(time.time + time.sec, 43200.0) - fmod(ssr->t0[1], 43200.0);
+    t3 = fmod(time.time + time.sec, 43200.0) - fmod(ssr->t0[2], 43200.0);
 
     /* ssr orbit and clock correction (ref [4]) */
     if (fabs(t1) > MAXAGESSR || fabs(t2) > MAXAGESSR)
@@ -971,7 +971,7 @@ extern int compute_vector_data(obs_t *obs, vec_t *vec)
     double blh[3] = { 0.0 };
 
     ecef2pos(obs->pos, blh);
-    printf("rcvpos=%13.3f %13.3f %13.3f\n", obs->pos[0], obs->pos[1], obs->pos[2]);
+    //printf("rcvpos=%13.3f %13.3f %13.3f\n", obs->pos[0], obs->pos[1], obs->pos[2]);
     for (i = 0; i < obs->n; ++i)
     {
         sys = satsys(obs->data[i].sat, &prn);
@@ -979,10 +979,9 @@ extern int compute_vector_data(obs_t *obs, vec_t *vec)
         if (norm(vecd->rs, 3) < 0.01) continue;
         /* compute geometric-range and azimuth/elevation angle */
         vecd->r = geodist(vecd->rs, obs->pos, vecd->e);
-        printf("%s sat=%c%2d rs=%13.3f dts=%12.3f\n", time_str(obs->time, 6), sys2char(sys), prn, vecd->r, vecd->dts[0] * CLIGHT);
-		vecd->r -= CLIGHT * vecd->dts[0];
+        //printf("%s sat=%c%2d rs=%13.3f dts=%12.3f\n", time_str(obs->time, 6), sys2char(sys), prn, vecd->r, vecd->dts[0] * CLIGHT);
+		//vecd->r -= CLIGHT * vecd->dts[0];
         vecd->rate = geovel(vecd->rs, obs->pos, vecd->e);
-
         satazel(blh, vecd->e, vecd->azel);
         /* satellite clock-bias */
         vecd->sat = obs->data[i].sat;

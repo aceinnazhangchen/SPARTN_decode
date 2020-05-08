@@ -17,6 +17,8 @@ extern int model_phw(gtime_t time, int sat, const char *type, int opt, const dou
 
 extern int model_phw_bnc(gtime_t time, int sat, const char *type, int opt, const double *rs, const double *rr, double *phw);
 
+extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_m, const double *dSatVelocity_mps, const double *rr, double *phw);
+
 extern void tidedisp(gtime_t tutc, const double *rr, int opt, const double *odisp, double *dr);
 
 #ifdef __cplusplus

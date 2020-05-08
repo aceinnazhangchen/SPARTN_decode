@@ -274,6 +274,14 @@ typedef struct {                            /* SSR correction type */
     int     rap_num;
 } sap_ssr_t;
 
+typedef struct {                            /* SSR correction type */
+    double time;
+    int    num;
+    double corr1[7];                        /*geo,clk,etide,phase windup,shi,trop,sion*/
+    double corr2[7];
+    double diff [7];
+} sap_cor_dif;
+
 typedef struct {
 	uint32_t type;
 	uint32_t Subtype;

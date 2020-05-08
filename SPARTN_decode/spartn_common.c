@@ -227,7 +227,7 @@ void expanded_full_time(raw_spartn_t* raw_spartn) {
     //to full time
     if (raw_spartn->Subtype == 0) {
     	if (raw_spartn->Time_tag_type) {
-            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % DAY_SECOND;
+            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % (DAY_SECOND);
     	}
     	else {
     		//if (GPS_DAYS > 0) {
@@ -238,7 +238,7 @@ void expanded_full_time(raw_spartn_t* raw_spartn) {
     }
     else if (raw_spartn->Subtype == 1) {//
     	if (raw_spartn->Time_tag_type) {
-            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % DAY_SECOND;
+            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % (DAY_SECOND);
     	}
     	else {
     		//if (GLONASS_DAYS > 0) {

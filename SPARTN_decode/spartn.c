@@ -311,7 +311,7 @@ extern int get_match_epoch(obs_t *obs_ref, obs_t *obs_rov, vec_t *vec_ref, vec_t
     return n;
 }
 
-int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, double *ep, double *rovpos)  // int year, int doy, 
+int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fLOG, double *ep, double *rovpos) 
 {
     gnss_rtcm_t rtcm      = { 0 };
     nav_t *nav            = &rtcm.nav;
@@ -398,18 +398,22 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, double *ep, double *rovpos)  // int
                 }
             }
             if (nav_iod != sap_ssr[i].iod[0]) continue;
-            printf("ocb:%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n", sap_ssr[i].t0[0], sap_ssr[i].t0[1], nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn, sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk, sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
+            printf("ocb:%6.0f,%6.0f,%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n", 
+                sap_ssr[i].t0[0], sap_ssr[i].t0[1], sap_ssr[i].t0[2], sap_ssr[i].t0[4], nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn,
+                sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk, 
+                sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
         }
 
         while (1)
         { 
             teph = timeadd(teph, 5.0);
             int time = teph.time;
-            double time1 = fmod((double)time, 86400);
-            if (fabs(time1 - sap_ssr[0].t0[1]) < 5.0)
+            double time1 = fmod((double)time, DAY_SECONDS);
+            if (fabs(time1 - sap_ssr[0].t0[1]) < 20.0)
                 break;
         }
-        
+        memset(&obs_vrs, 0, sizeof(obs_vrs));
+
         nsat=satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
 
         obs_vrs.time = teph;
@@ -421,6 +425,8 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, double *ep, double *rovpos)  // int
         }
         nsat = compute_vector_data(&obs_vrs, vec_vrs);
         
+        if (nsat == 0)  continue;
+
         int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, &obs_vrs, vec_vrs, 0.0);
 
         nc++;
@@ -587,61 +593,58 @@ int obs_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fROV, int year, int doy, doub
     return 1;
 }
 
+void correction_diff(FILE *fCOR, FILE *fLOG, FILE *fDIF)
+{
+    sap_cor_dif cor_dif = { 0 };
+    char cor1[1024] = { 0 }, cor2[1024] = { 0 };
+    char buffer[512] = { 0 };
+    if (fCOR != NULL) fgets(cor1, sizeof(cor1), fCOR);
+    if (fLOG != NULL) fgets(cor2, sizeof(cor2), fLOG);
+
+}
 
 int main() 
 {
     FILE *fSSR = { NULL };
     FILE *fEPH = { NULL };
     FILE *fROV = { NULL };
-    //fROV = fopen("..\\20200317\\SF0320077g.dat", "rb");
-    //fSSR = fopen("..\\20200317\\SPARTN20200317062037.raw","rb");
-    //fEPH = fopen("..\\20200317\\Aux20200317062038.raw", "rb");
-    //int year = 2020;
-    //int doy = 77;
-    //double ep[6] = { 2020,3,17,0,0,0 };
+    FILE *fLOG = { NULL };
 
-    //fROV = fopen("..\\20200316\\sf03076j.rtcm", "rb");
-    //fSSR = fopen("..\\20200316\\SPARTN20200316091017.raw", "rb");
-    //fEPH = fopen("..\\20200316\\Aux20200316091039.raw", "rb");
+    //fROV = fopen("..\\20200420\\SF0320111h.dat", "rb");
+    //fSSR = fopen("..\\20200420\\SPARTN20200420070130.raw", "rb");
+    //fEPH = fopen("..\\20200420\\Aux20200420070149.raw", "rb");
+    //fLOG = fopen("..\\20200420\\SSR2OSR20200420070149.log", "rb");
     //int year = 2020;
-    //int doy = 76;
-    //double ep[6] = { 2020,3,16,0,0,0 };
+    //int doy = 111;
+    //double ep[6] = { 2020,4,20,7,1,50 };
+    //double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
 
-    //fROV = fopen("..\\20200405\\SF0320096h.dat", "rb");
-    //fSSR = fopen("..\\20200405\\SSR20096h.dat", "rb");
-    //fEPH = fopen("..\\20200405\\EPH20096h.dat", "rb");
-    //int year = 2020;
-    //int doy = 96;
-    //double ep[6] = { 2020,4,5,0,0,0 };
-
-    //fROV = fopen("..\\20200406\\SF0320097m.dat", "rb");
-    //fSSR = fopen("..\\20200406\\SSR20097m.dat", "rb");
-    //fEPH = fopen("..\\20200406\\EPH20097m.dat", "rb");
-    //int year = 2020;
-    //int doy = 97;
-    //double ep[6] = { 2020,4,6,0,0,0 };
-
-    //fROV = fopen("..\\20200407\\SF0320098l.dat", "rb");
-    //fSSR = fopen("..\\20200407\\SSR20098l.dat", "rb");
-    //fEPH = fopen("..\\20200407\\EPH20098l.dat", "rb");
-    //int year = 2020;
-    //int doy  = 98;
-    //double ep[6] = { 2020,4,7,0,0,0 };
-
-    fROV = fopen("..\\20200420\\SF0320111h.dat", "rb");
-    fSSR = fopen("..\\20200420\\SPARTN20200420070130.raw", "rb");
-    fEPH = fopen("..\\20200420\\Aux20200420070149.raw", "rb");
+    fSSR = fopen("..\\20200430\\SPARTN20200430010222.raw", "rb");
+    fEPH = fopen("..\\20200430\\Aux20200430010139.raw", "rb");
+    fLOG = fopen("..\\20200430\\SSR2OSR20200430010222.log", "rb");
     int year = 2020;
-    int doy = 111;
-    //double ep[6] = { 2020,4,20,7,2,20 };
-    double ep[6] = { 2020,4,20,7,1,50 };
-    //07:47 : 00
-
+    int doy = 121;
+    double ep[6]     = { 2020,4,30,1,3,0 };
     double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
 
-    //obs_ssr2osr_main(fSSR, fEPH, fROV, year, doy,ep, rovpos);
+    //fSSR = fopen("..\\20200427\\SPARTN20200427141552.raw", "rb");
+    //fEPH = fopen("..\\20200427\\Aux20200427141521.raw", "rb");
+    //int year = 2020;
+    //int doy = 118;
+    //double ep[6]     = { 2020,4,27,14,15,55 };
+    //double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
 
-    gga_ssr2osr_main(fSSR, fEPH, ep, rovpos);
+    ////obs_ssr2osr_main(fSSR, fEPH, fROV, year, doy, ep, rovpos);
+    gga_ssr2osr_main(fSSR, fEPH, fLOG, ep, rovpos);
+
+    //FILE *fCOR = { NULL };
+    //FILE *fLOG = { NULL };
+    //FILE *fDIF = { NULL };
+    //fCOR = fopen("..\\20200427\\CorrData20200427141653.log", "rb");
+    //fLOG = fopen("..\\20200427\\obsfromssr.log", "rb");
+    //fDIF = fopen("..\\20200427\\corrdata.dif", "w");
+    //correction_diff(fCOR, fLOG, fDIF);
+
 
 	return 0;
 }
