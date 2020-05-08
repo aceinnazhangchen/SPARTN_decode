@@ -78,7 +78,6 @@ uint16_t crc16_ccitt(uint8_t *data, uint32_t len)
 uint32_t crc24_radix(uint8_t *data, uint32_t len)
 {
 	uint32_t crc_value = 0;
-	int i;
 	while (len--)
 	{
 		crc_value = ((crc_value << 8) & 0xFFFFFFU) ^ CRC24_TABLE[(crc_value >> 16) ^ *data++];

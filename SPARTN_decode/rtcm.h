@@ -30,7 +30,41 @@ extern "C" {
 
 /*-----------------------------------------------------------*/
 /* from rtklib to decode RTCM3 */
+#define RTCM2PREAMB 0x66 /* rtcm ver.2 frame preamble */
+#define RTCM3PREAMB 0xD3 /* rtcm ver.3 frame preamble */
+#define RANGE_MS (CLIGHT * 0.001) /* range in 1 ms */
+#define ROUND_U(x) ((unsigned int)floor((x) + 0.5))
 
+#define P2_10 0.0009765625          /* 2^-10 */
+#define P2_34 5.820766091346740E-11 /* 2^-34 */
+#define P2_46 1.421085471520200E-14 /* 2^-46 */
+#define P2_59 1.734723475976810E-18 /* 2^-59 */
+#define P2_66 1.355252715606880E-20 /* 2^-66 */
+
+#define P2_5 0.03125                /* 2^-5 */
+#define P2_6 0.015625               /* 2^-6 */
+#define P2_11 4.882812500000000E-04 /* 2^-11 */
+#define P2_15 3.051757812500000E-05 /* 2^-15 */
+#define P2_17 7.629394531250000E-06 /* 2^-17 */
+#define P2_19 1.907348632812500E-06 /* 2^-19 */
+#define P2_20 9.536743164062500E-07 /* 2^-20 */
+#define P2_21 4.768371582031250E-07 /* 2^-21 */
+#define P2_23 1.192092895507810E-07 /* 2^-23 */
+#define P2_24 5.960464477539063E-08 /* 2^-24 */
+#define P2_27 7.450580596923828E-09 /* 2^-27 */
+#define P2_29 1.862645149230957E-09 /* 2^-29 */
+#define P2_30 9.313225746154785E-10 /* 2^-30 */
+#define P2_31 4.656612873077393E-10 /* 2^-31 */
+#define P2_32 2.328306436538696E-10 /* 2^-32 */
+#define P2_33 1.164153218269348E-10 /* 2^-33 */
+#define P2_35 2.910383045673370E-11 /* 2^-35 */
+#define P2_38 3.637978807091710E-12 /* 2^-38 */
+#define P2_39 1.818989403545856E-12 /* 2^-39 */
+#define P2_40 9.094947017729280E-13 /* 2^-40 */
+#define P2_43 1.136868377216160E-13 /* 2^-43 */
+#define P2_48 3.552713678800501E-15 /* 2^-48 */
+#define P2_50 8.881784197001252E-16 /* 2^-50 */
+#define P2_55 2.775557561562891E-17 /* 2^-55 */
 
 #ifndef NFREQ
 #define NFREQ 2
@@ -324,6 +358,10 @@ typedef struct {        /* RTCM control struct type */
     unsigned int type; /* last rtcm type */
     unsigned char buff[1200]; /* message buffer */
 	unsigned char key;
+
+	double cp[MAXSAT][NFREQ + NEXOBS]; /* carrier-phase measurement, used in encode */
+	gtime_t lltime[MAXSAT][NFREQ + NEXOBS]; /* last lock time */
+	int seqno;          /* sequence number for rtcm 2 or iods msm */
 } rtcm_t;
 
 
@@ -345,6 +383,8 @@ int input_rtcm3_data(rtcm_t *rtcm, unsigned char data, obs_t *obs, nav_t *nav);
 int input_rtcm3(unsigned char data, unsigned int stnID, gnss_rtcm_t *gnss);
 
 unsigned int rtcm_getbitu(const unsigned char *buff, int pos, int len);
+void setbitu(unsigned char *buff, int pos, int len, unsigned int data);
+void setbits(unsigned char *buff, int pos, int len, int data);
 
 /* glo frquent number function */
 void set_glo_frq(unsigned char prn, int frq);
@@ -396,7 +436,12 @@ int add_obs(obsd_t* obsd, obs_t* obs);
 int add_eph(eph_t* eph, nav_t* nav);
 int add_geph(geph_t* eph, nav_t* nav);
 
+char *code2obs(int sys, unsigned char code, int *freq);
+unsigned int rtk_crc24q(const unsigned char *buff, int len);
+
 /*--------------------------------------------------------------------*/
+int gen_rtcm3(rtcm_t* rtcm, obs_t *obs, int type, int sync);
+
 #ifdef __cplusplus
 }
 #endif
