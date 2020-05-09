@@ -475,31 +475,31 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         obs_vrs->data[i].L[0]    = (vec_vrs[i].r - CLIGHT * vec_vrs[i].dts[0] + strop - tecu2m1 * stec + pbias[0]) / w1 + vec_vrs[i].phw;
         obs_vrs->data[i].L[1]    = (vec_vrs[i].r - CLIGHT * vec_vrs[i].dts[0] + strop - tecu2m2 * stec + pbias[1]) / w2 + vec_vrs[i].phw;
         nobs++;
-        int dt1 = obstime - ssr[loc].t0[0];
-        int dt2 = obstime - ssr[loc].t0[1];
-        int dt3 = obstime - ssr[loc].t0[2];
-        int dt4 = obstime - ssr[loc].t0[4];
-        printf("obs:%6i,%3i,%3i,%3i,%3i,%3i,%13.3f,%11.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n",
-            obstime, dt1, dt2, dt3, dt4, obs_vrs->data[i].sat, vec_vrs[i].r, vec_vrs[i].dts[0]*CLIGHT, soltide, vec_vrs[i].phw*w1, vec_vrs[i].phw*w2, grav_delay, strop,
-            tecu2m1 * stec, tecu2m2 * stec, cbias[0], cbias[1], pbias[0], pbias[1]);
+        //int dt1 = obstime - ssr[loc].t0[0];
+        //int dt2 = obstime - ssr[loc].t0[1];
+        //int dt3 = obstime - ssr[loc].t0[2];
+        //int dt4 = obstime - ssr[loc].t0[4];
+        //printf("obs:%6i,%3i,%3i,%3i,%3i,%3i,%13.3f,%11.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n",
+        //    obstime, dt1, dt2, dt3, dt4, obs_vrs->data[i].sat, vec_vrs[i].r, vec_vrs[i].dts[0]*CLIGHT, soltide, vec_vrs[i].phw*w1, vec_vrs[i].phw*w2, grav_delay, strop,
+        //    tecu2m1 * stec, tecu2m2 * stec, cbias[0], cbias[1], pbias[0], pbias[1]);
     }
 
-    double ep[6];
-    int sys;
-    time2epoch(obs_vrs->time, ep);
-    printf("%4.0f %2.0f %2.0f %2.0f %2.0f %4.1f %3i", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5],nobs);
-    for (i = 0; i < obs_vrs->n; i++)
-    {
-        if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
-        sys = satsys(obs_vrs->data[i].sat, &prn);
-        printf("%c%02d", sys2char(sys), prn);
-    }
-    printf("\n");  //, sys2char(sys), prn
-    for (i = 0; i < obs_vrs->n; i++)
-    {
-        if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
-        printf("%14.4f,%14.4f,%14.4f,%14.4f\n", obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
-    }
+    //double ep[6];
+    //int sys;
+    //time2epoch(obs_vrs->time, ep);
+    //printf("%4.0f %2.0f %2.0f %2.0f %2.0f %4.1f %3i", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5],nobs);
+    //for (i = 0; i < obs_vrs->n; i++)
+    //{
+    //    if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
+    //    sys = satsys(obs_vrs->data[i].sat, &prn);
+    //    printf("%c%02d", sys2char(sys), prn);
+    //}
+    //printf("\n");  //, sys2char(sys), prn
+    //for (i = 0; i < obs_vrs->n; i++)
+    //{
+    //    if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
+    //    printf("%14.4f,%14.4f,%14.4f,%14.4f\n", obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+    //}
     //printf("\n");
     return 1;
 }
