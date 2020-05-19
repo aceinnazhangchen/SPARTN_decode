@@ -180,12 +180,12 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	}
 	nsat = compute_vector_data(obs_vrs, vec_vrs);
 
-	int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0,NULL);
-	for (i = 0; i < obs_vrs->n; ++i) {
-		if (m_fLOG) fprintf(m_fLOG,"obs: %12I64i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
-			obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
-	}
-	if (m_fLOG) fprintf(m_fLOG, "\n");
+	int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0, m_fLOG);
+	//for (i = 0; i < obs_vrs->n; ++i) {
+	//	if (m_fLOG) fprintf(m_fLOG,"obs: %12I64i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+	//		obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+	//}
+	//if (m_fLOG) fprintf(m_fLOG, "\n");
 
 	rtcm_t out_rtcm = { 0 };
 	*len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, out_buffer);
