@@ -3,92 +3,51 @@
 #include "log.h"
 #include "rinex.h"
 #include "ephemeris.h"
+#include "GenVRSObs.h"
 
-#define PROCESS
-//#define SPARTN_2_RTCM
+#define SPARTN_2_RTCM
 //#define READ_RTCM
 //#define READ_RINEX
 
-//int main() {
-//
-//	FILE* fp;
-//	fp = fopen("..\\raw_data\\SPARTN20200317062037.raw", "rb");
-//	if (fp == NULL) {
-//		return 0;
-//	}
-//#ifdef TABLE_LOG
-//	open_ocb_table_file(NULL);
-//	open_hpac_table_file(NULL);
-//	open_gad_table_file(NULL);
-//	open_lpac_table_file(NULL);
-//#endif
-//	char buff = ' ';
-//	size_t currentCount = 0;
-//	size_t frameSize = 0;
-//	size_t frameCount = 0;
-//	size_t readCount = 0;
-//	raw_spartn_t spartn;
-//	memset(&spartn, 0, sizeof(spartn));
-//	spartn_t spartn_out;
-//	memset(&spartn_out, 0, sizeof(spartn_t));
-//	OCB_t ocb = { 0 };
-//	HPAC_t hpac = { 0 };
-//	GAD_t gad = { 0 };
-//	LPAC_t lpac = { 0 };
-//	spartn_out.ocb = &ocb;
-//	spartn_out.hpac = &hpac;
-//	spartn_out.gad = &gad;
-//	spartn_out.lpac = &lpac;
-//	log(LOG_INFO, 0, "%5s,%3s,%4s,%4s,%3s,%5s,%3s,%4s,%11s,%3s,%4s,%3s,%3s,%2s,%3s,%4s", "frame", "crc", "type", "len", "EAF", "crc_t","sub","ti_t","time","sid","spid","EId","ESN","AI","EAL", "EADL");
-//	int i;
-//	while (!feof(fp)) {
-//		memset(&buff, 0, sizeof(buff));
-//		readCount = fread(&buff, sizeof(char), 1, fp);
-//		if (readCount < 1)
-//		{
-//			/* file error or eof of file */
-//			break;
-//		}
-//		currentCount += readCount;
-//		frameSize += readCount;
-//		if (buff == SPARTN_PREAMB) {
-//			if (spartn.nbyte == 0) {
-//				log(LOG_DEBUG, 0, "frameSize = %d", frameSize);
-//			}
-//		}
-//		int ret = input_spartn_data(&spartn, &spartn_out, buff);
-//		if (ret != 0) {
-//			frameCount++;
-//			if (ret == 1) {
-//				char IVS[32] = { 0 };
-//				for (i = 0; i < 12; ++i) {
-//					sprintf(IVS+i*2,"%02X", spartn.IV[i]);
-//					//Bp(spartn.IV[i]);
-//				}
-//				//printf("\n");
-//				log(LOG_INFO, 0, "%5d,%3d,%4d,%4d,%3d,%5d,%3d,%4d,%11d,%3d,%4d,%3d,%3d,%2d,%3d,%4d,%s", frameCount, ret, spartn.type, spartn.len, spartn.EAF, spartn.CRC_type, spartn.Subtype, spartn.Time_tag_type,spartn.GNSS_time_type
-//				,spartn.Solution_ID,spartn.Solution_processor_ID, spartn.Encryption_ID, spartn.ESN, spartn.AI, spartn.EAL, spartn.EADL*8, IVS);
-//			}
-//			else{
-//				log(LOG_INFO, 0, "%5d,%3d,%4d,%4d,%3d", frameCount, ret, spartn.type, spartn.len, spartn.EAF);
-//			}
-//			frameSize = 0;
-//			log(LOG_DEBUG, 0, "frame = %d", frameCount);
-//			log(LOG_DEBUG, 0, "=======================");
-//			memset(&spartn, 0, sizeof(raw_spartn_t));
-//		}
-//	}
-//#ifdef TABLE_LOG
-//	close_ocb_table_file();
-//	close_hpac_table_file();
-//	close_gad_table_file();
-//	close_lpac_table_file();
-//#endif
-//	fclose(fp);
-//	return 0;
-//}
+int match_ssr_nav_iode(sap_ssr_t *sap_ssr, nav_t *nav)
+{
+    int i, j, ng = 0;
+    for (i = 0; i < nav->ns; i++)
+    {
+        int nav_iod = -1;
+        int sys = sap_ssr[i].sys;
+        if (sys == 0)
+        {
+            for (j = 0; j < nav->n; j++)
+            {
+                if (sap_ssr[i].prn == nav->eph[j].sat && sap_ssr[i].iod[0] == nav->eph[j].iode)
+                {
+                    ng++;
+                    break;
+                }
+            }
+        }
+        else if (sys == 1)
+        {
+            for (j = 0; j < nav->ng; j++)
+            {
+                if (sap_ssr[i].prn + 40 == nav->geph[j].sat && sap_ssr[i].iod[0] == nav->geph[j].iode)
+                {
+                    ng++;
+                    break;
+                }
+            }
+        }
+    }
 
-int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep, double *rovpos)  // int year, int doy, 
+    double ratio = (double)ng / nav->ns;
+    if (ng >= 10 && ratio > 0.8)
+        return 1;
+    else
+        return 0;
+}
+
+int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep, double *rovpos)
 {
 	gnss_rtcm_t rtcm = { 0 };
 	nav_t *nav = &rtcm.nav;
@@ -175,24 +134,21 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 				}
 			}
 			if (nav_iod != sap_ssr[i].iod[0]) continue;
-			double nav_toe = (sys == 0) ? fmod(nav->eph[j].toe.time, 86400) : fmod(nav->geph[j].toe.time, 86400);
-			printf("ocb:%6.0f,%6.0f,%6.0f,%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n",
-				sap_ssr[i].t0[0], sap_ssr[i].t0[1], sap_ssr[i].t0[2], sap_ssr[i].t0[4], nav_toe, nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn,
-				sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk,
-				sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
+			printf("ocb:%6.0f,%6.0f,%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n", 
+                sap_ssr[i].t0[0], sap_ssr[i].t0[1], sap_ssr[i].t0[2], sap_ssr[i].t0[4], nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn,
+                sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk, 
+                sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
 		}
-		printf("\n");
 
-		while (1)
-		{
-			teph = timeadd(teph, 5.0);
-			int time = teph.time;
-			double time1 = fmod((double)time, DAY_SECONDS);
-			if (time1 - sap_ssr[0].t0[1] < 20.0 && time1>sap_ssr[0].t0[1])
-				break;
-		}
+        while (1)
+        {
+            teph = timeadd(teph, 5.0);
+            int time = teph.time;
+            double time1 = fmod((double)time, DAY_SECONDS);
+            if (time1 - sap_ssr[0].t0[1] < 20.0 && time1>sap_ssr[0].t0[1])
+                break;
+        }
 		memset(&obs_vrs, 0, sizeof(obs_vrs));
-
 		nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
 
 		obs_vrs.time = teph;
@@ -206,18 +162,20 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 
 		if (nsat == 0)  continue;
 		int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, &obs_vrs, vec_vrs, 0.0, fLOG);
-		for (i = 0; i < obs_vrs.n; ++i) {
-			printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
-				obs_vrs.time.time, obs_vrs.data[i].sat, obs_vrs.data[i].P[0], obs_vrs.data[i].P[1], obs_vrs.data[i].L[0], obs_vrs.data[i].L[1]);
-		}
-		printf("\n");
+		//for (i = 0; i < obs_vrs.n; ++i) {
+		//	printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+		//		obs_vrs.time.time, obs_vrs.data[i].sat, obs_vrs.data[i].P[0], obs_vrs.data[i].P[1], obs_vrs.data[i].L[0], obs_vrs.data[i].L[1]);
+		//}
+		//printf("\n");
 
 		rtcm_t out_rtcm = { 0 };
 		unsigned char buffer[1200] = { 0 };
 		int len = gen_rtcm_vrsdata(&obs_vrs, &out_rtcm, buffer);
-		if (fRTCM) fwrite(buffer, 1, len, fRTCM);
+
 		//obs_t obs_test = { 0 };
 		//decode_rtcm3(&out_rtcm, &obs_test, NULL);
+
+		fwrite(buffer, 1, len, fRTCM);
 		nc++;
 	}
 	return 0;
@@ -369,10 +327,6 @@ int obs_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fROV, int year, int doy, doub
 #ifdef SSR_SAP 
 		int vrs_ret = gen_vobs_from_ssr(rov, sap_ssr, sap_gad, &obs_vrs, vec_vrs, 0.0);
 #endif
-		//int iref[MAXOBS] = { 0 }, irov[MAXOBS] = { 0 };
-		//int nsd = get_match_epoch(rov, &obs_vrs, vec_vrs, vec_vrs, iref, irov);
-		//if (nsd == 0) continue;
-		//print_dd_obs(rov, &obs_vrs, vec_vrs, vec_vrs, iref, irov, nsd, NULL);
 	}
 #ifdef TABLE_LOG
 	close_ocb_table_file();
@@ -406,216 +360,214 @@ void correction_diff(FILE *fCOR, FILE *fLOG, FILE *fDIF)
 
 int process(const char *fname, const char *root_dir)
 {
-	FILE *fSSR = { NULL };
-	FILE *fEPH = { NULL };
-	FILE *fROV = { NULL };
-	FILE *fLOG = { NULL };
-	FILE *fINI = fopen(fname, "r");
-	char buffer[255];
-	char fname1[255] = { 0 };
-	char fname2[255] = { 0 };
-	char fname3[255] = { 0 };
-	char fname4[255] = { 0 };
-	char inp_dir[255] = { 0 };
-	char out_dir[255] = { 0 };
-	int year = 0, doy = 0, line = 0, type = 0, isPrint = 0, isObs = 0, num = 0;
-	double ep[6] = { 0 };
-	double rovpos[3] = { 0.0 };
-	double refpos[3] = { 0.0 };
-	if (root_dir) {
-		strncpy(inp_dir, root_dir, strlen(root_dir));
-	}
+    FILE *fSSR = { NULL };
+    FILE *fEPH = { NULL };
+    FILE *fROV = { NULL };
+    FILE *fLOG = { NULL };
+    FILE *fINI = fopen(fname, "r");
+    char buffer[255];
+    char fname1[255] = { 0 };
+    char fname2[255] = { 0 };
+    char fname3[255] = { 0 };
+    char fname4[255] = { 0 };
+    char inp_dir[255] = { 0 };
+    char out_dir[255] = { 0 };
+    int year = 0, doy = 0, line = 0, type = 0, isPrint = 0, isObs = 0, num = 0;
+    double ep[6] = { 0 };
+    double rovpos[3] = { 0.0 };
+    double refpos[3] = { 0.0 };
+    if (root_dir) {
+        strncpy(inp_dir, root_dir, strlen(root_dir));
+    }
 
-	while (fINI != NULL && !feof(fINI))
-	{
-		memset(buffer, 0, sizeof(buffer));
-		if (fgets(buffer, sizeof(buffer), fINI) == NULL) break;
-		if (strlen(buffer) < 2) continue;
-		if (buffer[0] == '#' || buffer[0] == ';') continue;
-		memset(fname1, 0, sizeof(fname1));
-		memset(fname2, 0, sizeof(fname2));
-		memset(fname3, 0, sizeof(fname3));
-		memset(fname4, 0, sizeof(fname4));
-		year = 0;
-		doy = 0;
-		type = 0;
-		num = sscanf(buffer, "%i", &type);
-		num = sscanf(buffer, "%i", &type);
-		switch (type) {
-		case 0: /* RTK data process */
-		{
-			strncpy(fname1, inp_dir, strlen(inp_dir));
-			strncpy(fname2, inp_dir, strlen(inp_dir));
-			strncpy(fname3, inp_dir, strlen(inp_dir));
-			strncpy(fname4, inp_dir, strlen(inp_dir));
-			num = sscanf(buffer, "%i,%[^\,],%[^\,],%[^\,],%[^\,],%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", &type, fname1 + strlen(inp_dir), fname2 + strlen(inp_dir), fname3 + strlen(inp_dir), fname4 + strlen(inp_dir),
-				&refpos[0], &refpos[1], &refpos[2], &ep[0], &ep[1], &ep[2], &ep[3], &ep[4], &ep[5]);
-			fSSR = fopen(fname1, "rb");
-			fEPH = fopen(fname2, "rb");
-			FILE * fRTCM_OUT = fopen(fname3, "wb");
-			FILE * fLOG = fopen(fname4, "wb");
-			gga_ssr2osr_main(fSSR, fEPH, fRTCM_OUT, fLOG, ep, refpos);
+    while (fINI != NULL && !feof(fINI))
+    {
+        memset(buffer, 0, sizeof(buffer));
+        if (fgets(buffer, sizeof(buffer), fINI) == NULL) break;
+        if (strlen(buffer) < 2) continue;
+        if (buffer[0] == '#' || buffer[0] == ';') continue;
+        memset(fname1, 0, sizeof(fname1));
+        memset(fname2, 0, sizeof(fname2));
+        memset(fname3, 0, sizeof(fname3));
+        memset(fname4, 0, sizeof(fname4));
+        year = 0;
+        doy = 0;
+        type = 0;
+        num = sscanf(buffer, "%i", &type);
+        num = sscanf(buffer, "%i", &type);
+        switch (type) {
+        case 0: /* RTK data process */
+        {
+            strncpy(fname1, inp_dir, strlen(inp_dir));
+            strncpy(fname2, inp_dir, strlen(inp_dir));
+            strncpy(fname3, inp_dir, strlen(inp_dir));
+            strncpy(fname4, inp_dir, strlen(inp_dir));
+            num = sscanf(buffer, "%i,%[^\,],%[^\,],%[^\,],%[^\,],%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf", &type, fname1 + strlen(inp_dir), fname2 + strlen(inp_dir), fname3 + strlen(inp_dir), fname4 + strlen(inp_dir),
+                &refpos[0], &refpos[1], &refpos[2], &ep[0], &ep[1], &ep[2], &ep[3], &ep[4], &ep[5]);
+            fSSR = fopen(fname1, "rb");
+            fEPH = fopen(fname2, "rb");
+            FILE * fRTCM_OUT = fopen(fname3, "wb");
+            FILE * fLOG = fopen(fname4, "wb");
+            gga_ssr2osr_main(fSSR, fEPH, fRTCM_OUT, fLOG, ep, refpos);
 
-		}break;
-		case 1: /* RTK data process */
-		{
-			gnss_rtcm_t rtcm = { 0 };
-			nav_t *nav = &rtcm.nav;
-			strncpy(fname1, inp_dir, strlen(inp_dir));
-			num = sscanf(buffer, "%i,%[^\,],%lf,%lf,%lf,%lf,%lf,%lf", &type, fname1 + strlen(inp_dir),
-				&ep[0], &ep[1], &ep[2], &ep[3], &ep[4], &ep[5]);
-			fEPH = fopen(fname1, "rb");
-			while (1)
-			{
-				nav->ns = 0;
-				nav->nsys[0] = 0;
-				nav->nsys[1] = 0;
-				/* read broadcast eph data one byte */
-				int ret_nav = fread_eph_rtcm(fEPH, &rtcm, nav->nsys[0], nav->nsys[1]);
-				if (ret_nav != 2)
-				{
-					/* can not find the complete epoch data */
-					if (feof(fEPH)) break;
-				}
-			}
+        }break;
+        case 1: /* RTK data process */
+        {
+            gnss_rtcm_t rtcm = { 0 };
+            nav_t *nav = &rtcm.nav;
+            strncpy(fname1, inp_dir, strlen(inp_dir));
+            num = sscanf(buffer, "%i,%[^\,],%lf,%lf,%lf,%lf,%lf,%lf", &type, fname1 + strlen(inp_dir),
+                &ep[0], &ep[1], &ep[2], &ep[3], &ep[4], &ep[5]);
+            fEPH = fopen(fname1, "rb");
+            while (1)
+            {
+                nav->ns = 0;
+                nav->nsys[0] = 0;
+                nav->nsys[1] = 0;
+                /* read broadcast eph data one byte */
+                int ret_nav = fread_eph_rtcm(fEPH, &rtcm, nav->nsys[0], nav->nsys[1]);
+                if (ret_nav != 2)
+                {
+                    /* can not find the complete epoch data */
+                    if (feof(fEPH)) break;
+                }
+            }
 
-		}break;
-		case 4: /* input directory, effective after this command */
-		{
-			if (root_dir) {
-				num = sscanf(buffer, "%i,%[^\,]", &type, inp_dir + strlen(root_dir));
-			}
-			else {
-				num = sscanf(buffer, "%i,%[^\,]", &type, inp_dir);
-			}
+        }break;
+        case 4: /* input directory, effective after this command */
+        {
+            if (root_dir) {
+                num = sscanf(buffer, "%i,%[^\,]", &type, inp_dir + strlen(root_dir));
+            }
+            else {
+                num = sscanf(buffer, "%i,%[^\,]", &type, inp_dir);
+            }
 
-			char* temp = strchr(inp_dir, '\n');
-			if (temp != NULL) temp[0] = '\0';
-			if (strlen(inp_dir) > 0)
-			{
-				if (inp_dir[strlen(inp_dir) - 1] != '\\')
-				{
-					inp_dir[strlen(inp_dir)] = '\\';
-				}
-			}
-		} break;
-		default:
-			break;
-		}
-
-		++line;
-	}
-	if (fINI != NULL) fclose(fINI);
-	return 0;
-
+            char* temp = strchr(inp_dir, '\n');
+            if (temp != NULL) temp[0] = '\0';
+            if (strlen(inp_dir) > 0)
+            {
+                if (inp_dir[strlen(inp_dir) - 1] != '\\')
+                {
+                    inp_dir[strlen(inp_dir)] = '\\';
+                }
+            }
+        } break;
+        default:
+            break;
+        }
+        ++line;
+    }
+    if (fINI != NULL) fclose(fINI);
+    return 0;
 }
+
 
 int main()
 {
-#ifdef PROCESS
-	process("..\\data.ini", NULL);
-#endif
-#ifdef SPARTN_2_RTCM
-	FILE *fSSR = { NULL };
-	FILE *fEPH = { NULL };
-	FILE *fROV = { NULL };
-	FILE *fRTCM = NULL;
-	FILE *fLOG = NULL;
+    process("..\\data.ini", NULL);
 
-	// fROV = fopen("..\\20200420\\SF0320111h.dat", "rb");
-	// fSSR = fopen("..\\20200420\\SPARTN20200420070130.raw", "rb");
-	// fEPH = fopen("..\\20200420\\Aux20200420070149.raw", "rb");
-	// fRTCM = fopen("..\\20200420\\SPARTN20200420070130.rtcm", "wb");
-	// int year = 2020;
-	// int doy = 111;
-	// double ep[6] = { 2020,4,20,7,1,50 };
-	//double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
-
-    fSSR = fopen("..\\20200430\\SPARTN20200430010222.raw", "rb");
-    fEPH = fopen("..\\20200430\\Aux20200430010139.raw", "rb");
-    fLOG = fopen("..\\20200430\\SSR2OSR20200430010222.log", "rb");
-    int year = 2020;
-    int doy = 121;
-    double ep[6]     = { 2020,4,30,1,3,0 };
-    double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
-
-
-	gga_ssr2osr_main(fSSR, fEPH, fRTCM, ep, rovpos);
-
-	if (fSSR) fclose(fSSR);
-	if (fEPH) fclose(fEPH);
-	if (fROV) fclose(fROV);
-	if (fRTCM) fclose(fRTCM);
-#endif
-#ifdef  READ_RTCM
-	FILE * fRTCM_IN = fopen("..\\20200420\\SPARTN20200420070130.rtcm", "rb");
-	FILE * fRTCM_OUT = fopen("..\\20200420\\SPARTN20200420070130-1.rtcm", "wb");
-	//FILE * fRTCM = fopen("..\\20200420\\SF0320111h.dat_1", "rb");
-	//FILE * fRTCM_OUT = fopen("..\\20200420\\SF0320111h.dat_2", "wb");
-	gnss_rtcm_t rtcm = { 0 };
-	set_approximate_time(2020, 111, rtcm.rcv);
-	obs_t* obs_vrs = &rtcm.obs[0];
-	int ret = 0;
-	int i = 0;
-	while (ret != -1) {
-		ret = read_obs_rtcm(fRTCM_IN, &rtcm, 0);
-		if (ret == 1) {
-			for (i = 0; i < obs_vrs->n; i++)
-			{
-				printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
-					obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
-			}
-			printf("\n");
-
-			rtcm_t out_rtcm = { 0 };
-			unsigned char buffer[1200] = { 0 };
-			int len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, buffer);
-
-			//memset(&out_rtcm, 0, sizeof(rtcm_t));
-			//obs_t obs_test = { 0 };
-			//for (i = 0; i < len; ++i) {
-			//	int ret = input_rtcm3_data(&out_rtcm, buffer[i], &obs_test, NULL);
-			//	if (ret == 1) {
-			//		break;
-			//	}
-			//}
-			fwrite(buffer, 1, len, fRTCM_OUT);
-		}
-	}
-	if (fRTCM_IN) fclose(fRTCM_IN);
-	if (fRTCM_OUT) fclose(fRTCM_OUT);
-#endif //  READ_RTCM
-#ifdef READ_RINEX
-	FILE * fRINEX_IN = fopen("..\\20200420\\SLIB_1110_20200420070225.rxo", "r");
-	FILE * fRTCM_OUT = fopen("..\\20200420\\SLIB_1110_20200420070225.rtcm", "wb");
-	rinex_header header = { 0 };
-	nav_t navs = { 0 };
-	sta_t sta = { 0 };
-	obs_t obs = { 0 };
-	int i = 0;
-	int ret = 0;
-	if (!readrnxh(fRINEX_IN, &header.ver_, &header.type_, &header.sys_, &header.tsys_, header.tobs, &navs, &sta, &(header.start_time), &(header.end_time)))
-	{
-		return 1;
-	}
-	while (ret != -1) {
-		ret = readrnxobs_one(fRINEX_IN, header.ver_, &header.tsys_, header.tobs, &obs, &sta);
-		if (ret > 0) {
-			for (i = 0; i < obs.n; i++)
-			{
-				printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
-					obs.time.time, obs.data[i].sat, obs.data[i].P[0], obs.data[i].P[1], obs.data[i].L[0], obs.data[i].L[1]);
-			}
-			printf("\n");
-
-			rtcm_t out_rtcm = { 0 };
-			unsigned char buffer[1200] = { 0 };
-			int len = gen_rtcm_vrsdata(&obs, &out_rtcm, buffer);
-			fwrite(buffer, 1, len, fRTCM_OUT);
-		}
-	}
-	if (fRINEX_IN) fclose(fRINEX_IN);
-	if (fRTCM_OUT) fclose(fRTCM_OUT);
-#endif // READ_RINEX
-	return 0;
+    return 0;
 }
+
+
+//int main()
+//{
+//#ifdef SPARTN_2_RTCM
+//	FILE *fSSR = { NULL };
+//	FILE *fEPH = { NULL };
+//	FILE *fROV = { NULL };
+//	FILE *fRTCM = NULL;
+//	FILE *fLOG = NULL;
+//
+//	// fROV = fopen("..\\20200420\\SF0320111h.dat", "rb");
+//	// fSSR = fopen("..\\20200420\\SPARTN20200420070130.raw", "rb");
+//	// fEPH = fopen("..\\20200420\\Aux20200420070149.raw", "rb");
+//	// fRTCM = fopen("..\\20200420\\SPARTN20200420070130.rtcm", "wb");
+//	// int year = 2020;
+//	// int doy = 111;
+//	// double ep[6] = { 2020,4,20,7,1,50 };
+//	//double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
+//
+//    fSSR = fopen("..\\20200430\\SPARTN20200430010222.raw", "rb");
+//    fEPH = fopen("..\\20200430\\Aux20200430010139.raw", "rb");
+//    fLOG = fopen("..\\20200430\\SSR2OSR20200430010222.log", "rb");
+//    int year = 2020;
+//    int doy = 121;
+//    double ep[6]     = { 2020,4,30,1,3,0 };
+//    double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
+//
+//
+//	gga_ssr2osr_main(fSSR, fEPH, fRTCM, ep, rovpos);
+//
+//	if (fSSR) fclose(fSSR);
+//	if (fEPH) fclose(fEPH);
+//	if (fROV) fclose(fROV);
+//	if (fRTCM) fclose(fRTCM);
+//#endif
+//#ifdef  READ_RTCM
+//	FILE * fRTCM_IN = fopen("..\\20200420\\SLIB_1110_20200420070225.rtcm", "rb");
+//	FILE * fRTCM_OUT = fopen("..\\20200420\\SLIB_1110_20200420070225.rtcm_1", "wb");
+//	//FILE * fRTCM = fopen("..\\20200420\\SF0320111h.dat_1", "rb");
+//	//FILE * fRTCM_OUT = fopen("..\\20200420\\SF0320111h.dat_2", "wb");
+//	gnss_rtcm_t rtcm = { 0 };
+//	set_approximate_time(2020, 111, rtcm.rcv);
+//	obs_t* obs_vrs = &rtcm.obs[0];
+//	int ret = 0;
+//	int i = 0;
+//	while (ret != -1) {
+//		ret = read_obs_rtcm(fRTCM_IN, &rtcm, 0);
+//		if (ret == 1) {
+//			for (i = 0; i < obs_vrs->n; i++)
+//			{
+//				printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+//					obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+//			}
+//			printf("\n");
+//
+//			rtcm_t out_rtcm = { 0 };
+//			unsigned char buffer[1200] = { 0 };
+//			int len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, buffer);
+//
+//			obs_t obs_test = { 0 };
+//			decode_rtcm3(&out_rtcm, &obs_test, NULL);
+//			fwrite(buffer, 1, len, fRTCM_OUT);
+//		}
+//	}
+//	if (fRTCM_IN) fclose(fRTCM_IN);
+//	if (fRTCM_OUT) fclose(fRTCM_OUT);
+//#endif //  READ_RTCM
+//#ifdef READ_RINEX
+//	FILE * fRINEX_IN = fopen("..\\20200420\\SLIB_1110_20200420070225.rxo", "r");
+//	FILE * fRTCM_OUT = fopen("..\\20200420\\SLIB_1110_20200420070225.rtcm", "wb");
+//	rinex_header header = { 0 };
+//	nav_t navs = { 0 };
+//	sta_t sta = { 0 };
+//	obs_t obs = { 0 };
+//	int i = 0;
+//	int ret = 0;
+//	if (!readrnxh(fRINEX_IN, &header.ver_, &header.type_, &header.sys_, &header.tsys_, header.tobs, &navs, &sta, &(header.start_time), &(header.end_time)))
+//	{
+//		return 1;
+//	}
+//	while (ret != -1) {
+//		ret = readrnxobs_one(fRINEX_IN, header.ver_, &header.tsys_, header.tobs, &obs, &sta);
+//		if (ret > 0) {
+//			for (i = 0; i < obs.n; i++)
+//			{
+//				printf("obs: %12i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+//					obs.time.time, obs.data[i].sat, obs.data[i].P[0], obs.data[i].P[1], obs.data[i].L[0], obs.data[i].L[1]);
+//			}
+//			printf("\n");
+//
+//			rtcm_t out_rtcm = { 0 };
+//			unsigned char buffer[1200] = { 0 };
+//			int len = gen_rtcm_vrsdata(&obs, &out_rtcm, buffer);
+//			fwrite(buffer, 1, len, fRTCM_OUT);
+//		}
+//	}
+//	if (fRINEX_IN) fclose(fRINEX_IN);
+//	if (fRTCM_OUT) fclose(fRTCM_OUT);
+//#endif // READ_RINEX
+//	return 0;
+//}
