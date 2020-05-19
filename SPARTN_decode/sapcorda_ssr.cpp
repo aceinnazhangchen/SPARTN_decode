@@ -52,10 +52,12 @@ sapcorda_ssr::sapcorda_ssr()
 	m_spartn_out.hpac = &hpac;
 	m_spartn_out.gad = &gad;
 	m_spartn_out.lpac = &lpac;
+	m_fLOG = fopen("obsfromssr.log", "w");
 }
 
 sapcorda_ssr::~sapcorda_ssr()
 {
+	if (m_fLOG) fclose(m_fLOG); m_fLOG = NULL;
 }
 
 void sapcorda_ssr::input_ssr_stream(unsigned char * buffer, uint32_t len)
@@ -83,7 +85,6 @@ void input_eph(unsigned char * buffer, uint32_t len)
 void input_gga(char * buffer, unsigned char*out_buffer, uint32_t *len)
 {
 	std::string gga = buffer;
-	//double rovpos[3] = { -2705297.408,-4283455.631,3861823.955 };
 
 	double pos[3] = { 0 };
 	double xyz[3] = { 0 };
@@ -107,18 +108,18 @@ void input_gga(char * buffer, unsigned char*out_buffer, uint32_t *len)
 
 	pos2ecef(pos, xyz);
 
-	merge_ssr_to_obs(xyz,out_buffer,len);
+	sapcorda_ssr::getInstance()->merge_ssr_to_obs(xyz,out_buffer,len);
 }
 
-unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32_t *len)
+unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32_t *len)
 {
 	vec_t vec_vrs[MAXOBS] = { 0 };
 	gtime_t teph = timeget();
-	sap_ssr_t *sap_ssr = sapcorda_ssr::getInstance()->m_spartn_out.ssr;
-	gad_ssr_t *sap_gad = sapcorda_ssr::getInstance()->m_spartn_out.ssr_gad;
-	nav_t *nav = &sapcorda_ssr::getInstance()->m_rtcm.nav;
+	sap_ssr_t *sap_ssr = m_spartn_out.ssr;
+	gad_ssr_t *sap_gad = m_spartn_out.ssr_gad;
+	nav_t *nav = &m_rtcm.nav;
 	uint32_t i, j, nsat;
-	uint8_t ssr_offset = sapcorda_ssr::getInstance()->m_spartn_out.ssr_offset;
+	uint8_t ssr_offset = m_spartn_out.ssr_offset;
 	for (i = 0; i < ssr_offset; i++)
 	{
 		if (sap_ssr[i].t0[0] > 0.0) nav->ns++;
@@ -150,12 +151,26 @@ unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32
 			}
 		}
 		if (nav_iod != sap_ssr[i].iod[0]) continue;
-		//printf("ocb:%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n", sap_ssr[i].t0[0], sap_ssr[i].t0[1], nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn, sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk, sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
+		double nav_toe = (sys == 0) ? fmod(nav->eph[j].toe.time, 86400) : fmod(nav->geph[j].toe.time, 86400);
+		if (m_fLOG) fprintf(m_fLOG,"ocb:%6.0f,%6.0f,%6.0f,%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n",
+			sap_ssr[i].t0[0], sap_ssr[i].t0[1], sap_ssr[i].t0[2], sap_ssr[i].t0[4], nav_toe, nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn,
+			sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk,
+			sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
 	}
+	if (m_fLOG) fprintf(m_fLOG,"\n");
+	//while (1)
+	//{
+	//	teph = timeadd(teph, 5.0);
+	//	int time = teph.time;
+	//	double time1 = fmod((double)time, DAY_SECONDS);
+	//	if (time1 - sap_ssr[0].t0[1] < 20.0 && time1>sap_ssr[0].t0[1])
+	//		break;
+	//}
+	obs_t* obs_vrs = &sapcorda_ssr::getInstance()->m_obs_vrs;
+	memset(obs_vrs, 0, sizeof(obs_vrs));
 
 	nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
-
-	obs_t* obs_vrs = &sapcorda_ssr::getInstance()->m_obs_vrs;
+	
 	obs_vrs->time = teph;
 	obs_vrs->n = nsat;
 	memcpy(obs_vrs->pos, rovpos, 3 * sizeof(double));
@@ -166,10 +181,11 @@ unsigned char* merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32
 	nsat = compute_vector_data(obs_vrs, vec_vrs);
 
 	int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0,NULL);
-	//for (i = 0; i < obs_vrs->n; ++i) {
-	//	printf("obs: %12I64i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
-	//		obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
-	//}
+	for (i = 0; i < obs_vrs->n; ++i) {
+		if (m_fLOG) fprintf(m_fLOG,"obs: %12I64i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
+			obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+	}
+	if (m_fLOG) fprintf(m_fLOG, "\n");
 
 	rtcm_t out_rtcm = { 0 };
 	*len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, out_buffer);

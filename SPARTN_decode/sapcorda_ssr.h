@@ -21,11 +21,12 @@ private:
 	HPAC_t hpac;
 	GAD_t gad;
 	LPAC_t lpac;
+	FILE* m_fLOG;
 public:
 	sapcorda_ssr();
 	~sapcorda_ssr();
 	void input_ssr_stream(unsigned char* buffer, uint32_t len);
 	void input_eph_stream(unsigned char* buffer, uint32_t len);
+	unsigned char* merge_ssr_to_obs(double * rovpos, unsigned char*out_buffer, uint32_t *len);
 };
 
-unsigned char* merge_ssr_to_obs(double * rovpos, unsigned char*out_buffer, uint32_t *len);
