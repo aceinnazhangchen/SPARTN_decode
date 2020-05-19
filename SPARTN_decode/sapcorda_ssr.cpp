@@ -53,6 +53,12 @@ sapcorda_ssr::sapcorda_ssr()
 	m_spartn_out.gad = &gad;
 	m_spartn_out.lpac = &lpac;
 	m_fLOG = fopen("obsfromssr.log", "w");
+	if (m_fLOG) {
+		printf("create log success ! \n");
+	}
+	else {
+		printf("create log failed ! \n");
+	}
 }
 
 sapcorda_ssr::~sapcorda_ssr()
@@ -190,6 +196,7 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	rtcm_t out_rtcm = { 0 };
 	*len = gen_rtcm_vrsdata(obs_vrs, &out_rtcm, out_buffer);
 	return out_buffer;
+	if(m_fLOG) fflush(m_fLOG);
 }
 
 void input_ssr_test(unsigned char* buffer, uint32_t len)
