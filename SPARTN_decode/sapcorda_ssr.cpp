@@ -5,6 +5,7 @@
 #include "export_ssr.h"
 #include <string>
 #include "stringex.h"
+#include <memory.h>
 
 static double dmm2deg(double dmm)
 {
@@ -126,11 +127,12 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	nav_t *nav = &m_rtcm.nav;
 	uint32_t i, j, nsat;
 	uint8_t ssr_offset = m_spartn_out.ssr_offset;
+	uint32_t ns = 0;
 	for (i = 0; i < ssr_offset; i++)
 	{
-		if (sap_ssr[i].t0[0] > 0.0) nav->ns++;
+		if (sap_ssr[i].t0[0] > 0.0) ns++;
 	}
-	for (i = 0; i < nav->ns; i++)
+	for (i = 0; i < ns; i++)
 	{
 		int nav_iod = -1;
 		int sys = sap_ssr[i].sys;
@@ -173,7 +175,7 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	//		break;
 	//}
 	obs_t* obs_vrs = &sapcorda_ssr::getInstance()->m_obs_vrs;
-	memset(obs_vrs, 0, sizeof(obs_vrs));
+	memset(obs_vrs, 0, sizeof(obs_t));
 
 	nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
 	
