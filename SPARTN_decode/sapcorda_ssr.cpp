@@ -122,6 +122,7 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 {
 	vec_t vec_vrs[MAXOBS] = { 0 };
 	gtime_t teph = timeget();
+	teph = timeadd(teph, 18.0);
 	sap_ssr_t *sap_ssr = m_spartn_out.ssr;
 	gad_ssr_t *sap_gad = m_spartn_out.ssr_gad;
 	nav_t *nav = &m_rtcm.nav;

@@ -134,11 +134,13 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 				}
 			}
 			if (nav_iod != sap_ssr[i].iod[0]) continue;
-			printf("ocb:%6.0f,%6.0f,%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n", 
-                sap_ssr[i].t0[0], sap_ssr[i].t0[1], sap_ssr[i].t0[2], sap_ssr[i].t0[4], nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn,
-                sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk, 
-                sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
+			double nav_toe = (sys == 0) ? fmod(nav->eph[j].toe.time, 86400) : fmod(nav->geph[j].toe.time, 86400);
+			if (fLOG) fprintf(fLOG, "ocb:%6.0f,%6.0f,%6.0f,%6.0f,%6.0f,%3i,%3i,%2i,%3i,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%7.3f\n",
+				sap_ssr[i].t0[0], sap_ssr[i].t0[1], sap_ssr[i].t0[2], sap_ssr[i].t0[4], nav_toe, nav_iod, sap_ssr[i].iod[0], sys, sap_ssr[i].prn,
+				sap_ssr[i].deph[0], sap_ssr[i].deph[1], sap_ssr[i].deph[2], sap_ssr[i].dclk,
+				sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
 		}
+		if (fLOG) fprintf(fLOG, "\n");
 
         while (1)
         {
