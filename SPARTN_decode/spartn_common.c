@@ -1,5 +1,4 @@
 #include "spartn.h"
-#include "bits.h"
 #include "log.h"
 #define Leap_Sec 18.0
 #define GLO_GPS_TD  10800

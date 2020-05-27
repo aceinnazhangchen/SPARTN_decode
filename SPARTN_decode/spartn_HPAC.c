@@ -102,6 +102,7 @@ void decode_troposphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_trop
 		}
 	}
 	//Troposphere grid block 
+#ifdef USE_Tropo_Iono_2
 	if (area->SF040_Tropo == 2) {
 		troposphere->SF051_Troposphere_residual_field_size = getbitu(payload, spartn->offset, 1);  spartn->offset += 1; slog(LOG_DEBUG, tab, "SF051_Troposphere_residual_field_size = %d", troposphere->SF051_Troposphere_residual_field_size);
 		if (troposphere->SF051_Troposphere_residual_field_size) {
@@ -117,6 +118,7 @@ void decode_troposphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_trop
 			}
 		}
 	}
+#endif // USE_Tropo_Iono_2
 }
 //Table 6.18 ionosphere small coefficient block 
 void decode_ionosphere_small_coefficient_block(raw_spartn_t* spartn, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_small_t* small_coefficient, int tab) {
@@ -162,6 +164,7 @@ void decode_ionosphere_satellite_block(raw_spartn_t* spartn, HPAC_area_t* area, 
 			decode_ionosphere_small_coefficient_block(spartn, ionosphere, small_coefficient, tab + 1);
 		}
 	}
+#ifdef USE_Tropo_Iono_2
 	if (area->SF040_Iono == 2) {
 		sat->SF063_Ionosphere_residual_field_size = getbitu(payload, spartn->offset, 2); spartn->offset += 2; slog(LOG_DEBUG, tab, "SF063_Ionosphere_residual_field_size = %d", sat->SF063_Ionosphere_residual_field_size);
 		switch (sat->SF063_Ionosphere_residual_field_size) {
@@ -191,6 +194,7 @@ void decode_ionosphere_satellite_block(raw_spartn_t* spartn, HPAC_area_t* area, 
 		break;
 		}
 	}
+#endif // USE_Tropo_Iono_2
 }
 //Table 6.16 Ionosphere block 
 void decode_ionosphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_ionosphere_t* ionosphere, int tab) {

@@ -652,7 +652,7 @@ extern void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int 
         //e[2] = vec[i].rs[2] - obs->pos[2];
         //r = norm(e, 3);
         //double dr = fabs(r-pr)/CLIGHT*3.0e3;
-        //printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f,%10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
+        printf("satpos: %s, %3d, %14.3f, %14.3f, %14.3f,%10.3f, %10.3f, %10.3f, %14.3f\n", time_str(time[i], 6), vec[i].sat, vec[i].rs[0], vec[i].rs[1], vec[i].rs[2], vec[i].rs[3], vec[i].rs[4], vec[i].rs[5], vec[i].dts[0] * CLIGHT);
     }
 }
 
@@ -714,15 +714,13 @@ extern int satposs_sap_rcv(gtime_t teph, double *rcvpos, vec_t *vec, nav_t *nav,
 
             /* transmission time by satellite clock */
             time[i] = timeadd(teph, -tt);
-            /* satellite clock bias by broadcast ephemeris */
-            //if (!ephclk(time[i], teph, vec[i].sat, nav, &dt))  continue; // break;
-            //time[i] = timeadd(time[i], -dt);
+
             /* satellite position and clock at transmission time */
             if (!satpos(time[i], teph, vec[i].sat, ephopt, nav, &ssr[issr[i]], vec[i].rs, vec[i].dts, &vec[i].var, &vec[i].svh))
                 break;
 
             rho  = sqrt(SQR(vec[i].rs[0] - xRec) + SQR(vec[i].rs[1] - yRec) + SQR(vec[i].rs[2] - zRec));
-            //tmpt = sqrt(SQR(vec[i].rs[0] - rcvpos[0]) + SQR(vec[i].rs[1] - rcvpos[1]) + SQR(vec[i].rs[2] - rcvpos[2])) ;
+
             tmpt = rho / CLIGHT;
             if (fabs(tmpt - tt) < 1.0e-8)
             {

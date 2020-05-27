@@ -401,28 +401,28 @@ int sread_eph_rtcm(unsigned char* buffer, uint32_t len, gnss_rtcm_t *rtcm, uint3
 	return ret;
 }
 
-int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, uint32_t ns_gps, uint32_t ns_g)
+int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int ns_gps, int ns_g)
 {
-    int ret = 0;
-    int iter_ssr = 0;
-    size_t readCount = 0;
-    char buff = ' ';
-    while (!feof(fRTCM))
-    {
-        memset(&buff, 0, sizeof(buff));
-        readCount = fread(&buff, sizeof(char), 1, fRTCM);
-        if (readCount < 1)
-        {
-            /* file error or eof of file */
-            break;
-        }
-        ret = input_rtcm3(buff, 0, rtcm);
-        if (ret == 2 && rtcm->nav.n_gps>= ns_gps && rtcm->nav.ng >= ns_g)
-        {
-            break;
-        }
-    }
-    return ret;
+	int ret = 0;
+	int iter_ssr = 0;
+	size_t readCount = 0;
+	char buff = ' ';
+	while (!feof(fRTCM))
+	{
+		memset(&buff, 0, sizeof(buff));
+		readCount = fread(&buff, sizeof(char), 1, fRTCM);
+		if (readCount < 1)
+		{
+			/* file error or eof of file */
+			break;
+		}
+		ret = input_rtcm3(buff, 0, rtcm);
+		if (ret == 2 && rtcm->nav.n_gps >= ns_gps && rtcm->nav.ng >= ns_g)
+		{
+			break;
+		}
+	}
+	return ret;
 }
 
 int sread_ssr_sapcorda(unsigned char* buffer,uint32_t len, raw_spartn_t *spartn, spartn_t *spartn_out, uint32_t *ssr_num)
@@ -460,51 +460,51 @@ int sread_ssr_sapcorda(unsigned char* buffer,uint32_t len, raw_spartn_t *spartn,
 
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *spartn, spartn_t *spartn_out, uint32_t *ssr_num)
 {
-    int ret = 0;
-    char buff = ' ';
-    size_t currentCount = 0;
-    size_t frameSize = 0;
-    size_t frameCount = 0;
-    size_t readCount = 0;
-    int i;
+	int ret = 0;
+	char buff = ' ';
+	size_t currentCount = 0;
+	size_t frameSize = 0;
+	size_t frameCount = 0;
+	size_t readCount = 0;
+	int i;
 
-    while (!feof(fSSR))
-    {
-        memset(&buff, 0, sizeof(buff));
-        readCount = fread(&buff, sizeof(char), 1, fSSR);
-        if (readCount < 1)
-        {
-            /* file error or eof of file */
-            return -1;
-        }
-        currentCount += readCount;
-        frameSize    += readCount;
+	while (!feof(fSSR))
+	{
+		memset(&buff, 0, sizeof(buff));
+		readCount = fread(&buff, sizeof(char), 1, fSSR);
+		if (readCount < 1)
+		{
+			/* file error or eof of file */
+			return -1;
+		}
+		currentCount += readCount;
+		frameSize += readCount;
 
-        int ret = input_spartn_data(spartn, spartn_out, buff);
-        int  areaId = spartn_out->ssr_gad[0].areaId;
-        double t1 = spartn_out->ssr[0].t0[0];
-        double t2 = spartn_out->ssr[0].t0[1];
-        double t3 = spartn_out->ssr[0].t0[2];
-        double t4 = spartn_out->ssr[0].t0[3];
-        double t5 = spartn_out->ssr[0].t0[4];
-        double t6 = spartn_out->ssr[0].t0[5];
+		int ret = input_spartn_data(spartn, spartn_out, buff);
+		int  areaId = spartn_out->ssr_gad[0].areaId;
+		double t1 = spartn_out->ssr[0].t0[0];
+		double t2 = spartn_out->ssr[0].t0[1];
+		double t3 = spartn_out->ssr[0].t0[2];
+		double t4 = spartn_out->ssr[0].t0[3];
+		double t5 = spartn_out->ssr[0].t0[4];
+		double t6 = spartn_out->ssr[0].t0[5];
 
-        if (ret== 1 && t1*t2*t3*t4*t5*t6>0.0 && spartn_out->type ==0 && spartn_out->eos==1)
-        {
-            //printf("\n");
-            for (i = 0; i < SSR_NUM; i++)
-            {
-                if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys==0)
-                    ssr_num[0]++;
-                else if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 1)
-                    ssr_num[1]++;
-            }
-            frameSize = 0;
-            frameCount++;
-            break;
-        }
-    }
-    return ret;
+		if (ret == 1 && t1*t2*t3*t4*t5*t6 > 0.0 && spartn_out->type == 0 && spartn_out->eos == 1)
+		{
+			for (i = 0; i < SSR_NUM; i++)
+			{
+				if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 0)
+					ssr_num[0]++;
+				else if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 1)
+					ssr_num[1]++;
+			}
+
+			frameSize = 0;
+			frameCount++;
+			break;
+		}
+	}
+	return;
 }
 
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm)

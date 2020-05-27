@@ -416,6 +416,8 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
     obstime = fmod(obstime, 43200);
 
     int nobs = 0;
+    obs_vrs->obsflag = 1;
+
     for (i = 0; i < obs_vrs->n; i++)
     {
         if (norm(vec_vrs[i].rs, 3) < 0.01)     continue;
@@ -480,27 +482,27 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         int dt2 = obstime - ssr[loc].t0[1];
         int dt3 = obstime - ssr[loc].t0[2];
         int dt4 = obstime - ssr[loc].t0[4];
-        if (fLOG)  fprintf(fLOG, "obs:%6i,%3i,%3i,%3i,%3i,%3i,%13.3f,%11.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n",
-                           obstime, dt1, dt2, dt3, dt4, obs_vrs->data[i].sat, vec_vrs[i].r, vec_vrs[i].dts[0]*CLIGHT, soltide, vec_vrs[i].phw*w1, vec_vrs[i].phw*w2, grav_delay, strop,
-                           tecu2m1 * stec, tecu2m2 * stec, cbias[0], cbias[1], pbias[0], pbias[1]);
+        //printf("obs:%6i,%3i,%3i,%3i,%3i,%3i,%13.3f,%11.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n",
+        //    obstime, dt1, dt2, dt3, dt4, obs_vrs->data[i].sat, vec_vrs[i].r, vec_vrs[i].dts[0]*CLIGHT, soltide, vec_vrs[i].phw*w1, vec_vrs[i].phw*w2, grav_delay, strop,
+        //    tecu2m1 * stec, tecu2m2 * stec, cbias[0], cbias[1], pbias[0], pbias[1]);
     }
 
     double ep[6];
     int sys;
     time2epoch(obs_vrs->time, ep);
-    if(fLOG)fprintf(fLOG, "%4.0f %2.0f %2.0f %2.0f %2.0f %4.1f %3i", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5],nobs);
+    fprintf(fLOG, "%4.0f %2.0f %2.0f %2.0f %2.0f %4.1f %3i", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5],nobs);
 
     for (i = 0; i < obs_vrs->n; i++)
     {
         if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
         sys = satsys(obs_vrs->data[i].sat, &prn);
-		if (fLOG)fprintf(fLOG, "%c%02d", sys2char(sys), prn);
+        fprintf(fLOG, "%c%02d", sys2char(sys), prn);
     }
-	if (fLOG)fprintf(fLOG, "\n");
+    fprintf(fLOG, "\n"); 
     for (i = 0; i < obs_vrs->n; i++)
     {
         if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
-		if (fLOG)fprintf(fLOG, "%14.4f,%14.4f,%14.4f,%14.4f\n", obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+        fprintf(fLOG, "%14.4f,%14.4f,%14.4f,%14.4f\n", obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
     }
     return 1;
 }

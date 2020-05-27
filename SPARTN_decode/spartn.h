@@ -15,6 +15,7 @@ extern "C"
 #define SSR_NUM       30
 
 #define DAY_SECOND    86400
+//#define USE_Tropo_Iono_2
 
 //=============================
 // SM 0-0/0-1  OCB messages 
@@ -132,11 +133,13 @@ typedef struct {
 		HPAC_troposphere_large_t large_coefficient;
 	};
 	//SF040_Tropo == 2
+#ifdef USE_Tropo_Iono_2
 	uint8_t SF051_Troposphere_residual_field_size;
 	union {
 		uint8_t SF052[128];
 		uint8_t SF053[128];
 	};
+#endif // USE_Tropo_Iono_2
 }HPAC_troposphere_t;
 
 typedef struct {
@@ -162,8 +165,10 @@ typedef struct {
 		HPAC_ionosphere_large_t large_coefficient;
 	};
 	//SF040_Iono == 2
+#ifdef USE_Tropo_Iono_2
 	uint8_t SF063_Ionosphere_residual_field_size;
 	uint16_t ionosphere_residual_slant_delay[128];
+#endif // USE_Tropo_Iono_2
 }HPAC_ionosphere_satellite_t;
 
 typedef struct {
@@ -347,7 +352,7 @@ int gen_rtcm_vrsdata(obs_t * obs, rtcm_t * rtcm, unsigned char * buff);
 
 int read_obs_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int stnID);
 int sread_eph_rtcm(unsigned char * buffer, uint32_t len, gnss_rtcm_t * rtcm, uint32_t ns_gps, uint32_t ns_g);
-int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, uint32_t ns_gps, uint32_t ns_g);
+int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int ns_gps, int ns_g);
 int sread_ssr_sapcorda(unsigned char * buffer, uint32_t len, raw_spartn_t * spartn, spartn_t * spartn_out, uint32_t * ssr_num);
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn, uint32_t *ssr_num);
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm);

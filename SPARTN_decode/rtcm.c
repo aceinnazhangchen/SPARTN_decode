@@ -499,6 +499,9 @@ unsigned int rtk_crc24q(const unsigned char *buff, int len)
     return crc;
 }
 
+#define RTCM2PREAMB 0x66 /* rtcm ver.2 frame preamble */
+#define RTCM3PREAMB 0xD3 /* rtcm ver.3 frame preamble */
+
 /* extract unsigned/signed bits ------------------------------------------------
 * extract unsigned/signed bits from byte data
 * args   : unsigned char *buff I byte data
@@ -586,43 +589,28 @@ typedef struct
     unsigned char cellmask[64]; /* cell mask */
 } msm_h_t;
 
-
-
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 /* ssr update intervals ------------------------------------------------------*/
 static const double ssrudint[16] = {
-    1, 2, 5, 10, 15, 30, 60, 120, 240, 300, 600, 900, 1800, 3600, 7200, 10800};
+    1, 2, 5, 10, 15, 30, 60, 120, 240, 300, 600, 900, 1800, 3600, 7200, 10800 };
 
 #define PRUNIT_GPS 299792.458     /* rtcm ver.3 unit of gps pseudorange (m) */
 #define PRUNIT_GLO 599584.916     /* rtcm ver.3 unit of glonass pseudorange (m) */
 
 
-
 /* msm signal id table -------------------------------------------------------*/
-const char *rtcm_msm_sig_gps[32] = {
+const char *msm_sig_gps[32] = {
     /* GPS: ref [13] table 3.5-87, ref [14][15] table 3.5-91 */
     "", "1C", "1P", "1W", "1Y", "1M", "", "2C", "2P", "2W", "2Y", "2M", /*  1-12 */
     "", "", "2S", "2L", "2X", "", "", "", "", "5I", "5Q", "5X",         /* 13-24 */
     "", "", "", "", "", "1S", "1L", "1X"                                /* 25-32 */
 };
-const char *rtcm_msm_sig_glo[32] = {
+const char *msm_sig_glo[32] = {
     /* GLONASS: ref [13] table 3.5-93, ref [14][15] table 3.5-97 */
     "", "1C", "1P", "", "", "", "", "2C", "2P", "", "3I", "3Q",
     "3X", "", "", "", "", "", "", "", "", "", "", "",
     "", "", "", "", "", "", "", ""};
-const char* msm_sig_gps[32] = {
-	/* GPS: ref [13] table 3.5-87, ref [14][15] table 3.5-91 */
-	""  ,"1C","1P","1W","1Y","1M",""  ,"2C","2P","2W","2Y","2M", /*  1-12 */
-	""  ,""  ,"2S","2L","2X",""  ,""  ,""  ,""  ,"5I","5Q","5X", /* 13-24 */
-	""  ,""  ,""  ,""  ,""  ,"1S","1L","1X"                      /* 25-32 */
-};
-const char* msm_sig_glo[32] = {
-	/* GLONASS: ref [13] table 3.5-93, ref [14][15] table 3.5-97 */
-	""  ,"1C","1P",""  ,""  ,""  ,""  ,"2C","2P",""  ,"3I","3Q",
-	"3X",""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,
-	""  ,""  ,""  ,""  ,""  ,""  ,""  ,""
-};
 const char *msm_sig_gal[32] = {
     /* Galileo: ref [15] table 3.5-100 */
     "", "1C", "1A", "1B", "1X", "1Z", "", "6C", "6A", "6B", "6X", "6Z",
@@ -731,16 +719,6 @@ static int test_staid(obs_t *obs, int staid)
 }
 
 
-char *obscodes[] = {
-    /* observation code strings */
-
-    "", "1C", "1P", "1W", "1Y", "1M", "1N", "1S", "1L", "1E",   /*  0- 9 */
-    "1A", "1B", "1X", "1Z", "2C", "2D", "2S", "2L", "2X", "2P", /* 10-19 */
-    "2W", "2Y", "2M", "2N", "5I", "5Q", "5X", "7I", "7Q", "7X", /* 20-29 */
-    "6A", "6B", "6C", "6X", "6Z", "6S", "6L", "8L", "8Q", "8X", /* 30-39 */
-    "2I", "2Q", "6I", "6Q", "3I", "3Q", "3X", "1I", "1Q", "5A", /* 40-49 */
-    "5B", "5C", "9A", "9B", "9C", "9X", "", "", "", ""          /* 50-59 */
-};
 /* GPS  */
 static unsigned char obsfreqs_gps[] = {
     /* 1:L1, 2:L2, 3:L5 */
@@ -2135,7 +2113,7 @@ static int decode_type1019(rtcm_t *rtcm, nav_t *nav)
         prn += 80;
     }
     trace(4, "decode_type1019: prn=%c%02d iode=%d toe=%.0f\n", sys2char(sys), prn, eph.iode, eph.toes);
-
+   
     if (!(sat = satno(sys, prn)))
     {
         trace(2, "rtcm3 1019 satellite number error: prn=%c%02d\n", sys2char(sys), prn);
@@ -2152,6 +2130,8 @@ static int decode_type1019(rtcm_t *rtcm, nav_t *nav)
 #endif
     eph.A = sqrtA * sqrtA;
 
+    double toes = fmod(eph.toes, 86400.0);
+   /* printf("decode_type1019: prn=%c%02d iode=%3d toe=%.0f toc=%10d ttr=%10d\n", sys2char(sys), prn, eph.iode, toes, eph.toc.time, eph.ttr.time);*/
    	if (add_eph(&eph, nav)==1)
 		++nav->n_gps;
 
@@ -2214,7 +2194,7 @@ static int decode_type1020(rtcm_t *rtcm, nav_t *nav)
         trace(2, "rtcm3 1020 satellite number error: prn=%c%02d\n", sys2char(sys), prn);
         return -1;
     }
-    trace(4, "decode_type1020: prn=%c%02d tk=%02.0f:%02.0f:%02.0f\n", sys2char(sys), prn, tk_h, tk_m, tk_s);
+    //trace(4, "decode_type1020: prn=%c%02d tk=%02.0f:%02.0f:%02.0f\n", sys2char(sys), prn, tk_h, tk_m, tk_s);
 
     geph.sat = sat;
     geph.svh = bn;
@@ -2236,7 +2216,8 @@ static int decode_type1020(rtcm_t *rtcm, nav_t *nav)
     else if (toe > tod + 43200.0)
         toe -= 86400.0;
     geph.toe = utc2gpst(gpst2time(week, tow + toe)); /* utc->gpst */
-
+    int toes = fmod(geph.toe.time, 86400);
+    /*printf("decode_type1020: prn=%c%02d iode=%3d toe=%6d toe=%10d tof=%10d\n", sys2char(sys), prn, geph.iode, toes, geph.toe.time, geph.tof.time);*/
     add_geph(&geph, nav);
     
     return 2;
@@ -2849,10 +2830,10 @@ static void save_msm_obs(rtcm_t *rtcm, obs_t *obs, int sys, msm_h_t *h, const do
         switch (sys)
         {
         case _SYS_GPS_:
-            sig[i] = rtcm_msm_sig_gps[h->sigs[i] - 1];
+            sig[i] = msm_sig_gps[h->sigs[i] - 1];
             break;
         case _SYS_GLO_:
-            sig[i] = rtcm_msm_sig_glo[h->sigs[i] - 1];
+            sig[i] = msm_sig_glo[h->sigs[i] - 1];
             break;
         case _SYS_GAL_:
             sig[i] = msm_sig_gal[h->sigs[i] - 1];
@@ -4566,21 +4547,21 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1039:
         ret = decode_type1039(rtcm);
         break; /* not supported */
-    case 1044:
-        ret = decode_type1044(rtcm, nav);
-        break;
-    case 1045:
-        ret = decode_type1045(rtcm, nav);
-        break;
-    case 1046:
-        ret = decode_type1046(rtcm, nav);
-        break;
-    case 63:
-        ret = decode_type1042(rtcm, nav);
-        break; /* RTCM draft */
-    case 1042:
-        ret = decode_type1042(rtcm, nav);
-        break;
+    //case 1044:
+    //    ret = decode_type1044(rtcm, nav);
+    //    break;
+    //case 1045:
+    //    ret = decode_type1045(rtcm, nav);
+    //    break;
+    //case 1046:
+    //    ret = decode_type1046(rtcm, nav);
+    //    break;
+    //case 63:
+    //    ret = decode_type1042(rtcm, nav);
+    //    break; /* RTCM draft */
+    //case 1042:
+    //    ret = decode_type1042(rtcm, nav);
+    //    break;
     case 4001:
         ret = decode_type4001(rtcm);
         //osSemaphoreRelease(rtcm_sem);
@@ -5164,8 +5145,11 @@ extern int add_eph(eph_t* eph, nav_t* nav)
 	if (i < nav->n)
 	{
 		/* replace old */
-		nav->eph[i] = *eph;
-		nav->ephsat = sat;
+        //if (eph->toe.time > nav->eph[i].toe.time)
+        //{
+            nav->eph[i] = *eph;
+            nav->ephsat = sat;
+        //}
 	}
 	else if (i == nav->n)
 	{
@@ -5216,8 +5200,11 @@ extern int add_geph(geph_t* eph, nav_t* nav)
 	if (i < nav->ng)
 	{
 		/* replace old */
-		nav->geph[i] = *eph;
-		nav->ephsat = sat;
+        //if (eph->toe.time > nav->geph[i].toe.time)
+        //{
+            nav->geph[i] = *eph;
+            nav->ephsat = sat;
+        //}
 	}
 	else if (i == nav->ng)
 	{

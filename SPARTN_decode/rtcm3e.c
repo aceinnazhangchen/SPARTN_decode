@@ -38,8 +38,6 @@
 #include <math.h>
 #include <string.h> 
 #include "rtklib_core.h"
-//#include "gnss_sat.h"
-//s#include "gnss_trace.h"
 
 static const char rcsid[]="$Id:$";
 
@@ -55,15 +53,14 @@ static const char rcsid[]="$Id:$";
 #define ROUND_U(x)  ((unsigned int)floor((x)+0.5))
 #define MIN(x,y)    ((x)<(y)?(x):(y))
 #endif
-/* msm signal id table -------------------------------------------------------*/
+///* msm signal id table -------------------------------------------------------*/
 extern const char *msm_sig_gps[32];
 extern const char *msm_sig_glo[32];
 extern const char *msm_sig_gal[32];
 extern const char *msm_sig_qzs[32];
 extern const char *msm_sig_sbs[32];
 extern const char *msm_sig_cmp[32];
-
-extern char *obscodes[];
+//extern char *obscodes[];
 #if 0
 /* ssr update intervals ------------------------------------------------------*/
 static const double ssrudint[16]={
@@ -1892,6 +1889,7 @@ static int encode_msm_head(int type, rtcm_t *rtcm, obs_t *obs, int sys, int sync
         tow=time2gpst(timeadd(gpst2utc(rtcm->time),10800.0),NULL);
         dow=(unsigned int)(tow/86400.0);
         epoch=(dow<<27)+ROUND_U(fmod(tow,86400.0)*1E3);
+        //epoch = ROUND_U(time2gpst(rtcm->time, NULL)*1E3);
     }
     else if (sys==_SYS_BDS_) {
         /* beidou time (tow-ms) */
