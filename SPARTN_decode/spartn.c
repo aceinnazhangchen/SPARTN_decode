@@ -504,7 +504,7 @@ int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *spartn, spartn_t *spartn_out, u
 			break;
 		}
 	}
-	return;
+	return 0;
 }
 
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm)

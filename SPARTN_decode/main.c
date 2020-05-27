@@ -74,14 +74,12 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 	memset(&spartn_out, 0, sizeof(spartn_t));
 	sap_ssr_t *sap_ssr = &spartn_out.ssr;
 	gad_ssr_t *sap_gad = &spartn_out.ssr_gad;
-	OCB_t ocb = { 0 };
-	HPAC_t hpac = { 0 };
-	GAD_t gad = { 0 };
-	LPAC_t lpac = { 0 };
-	spartn_out.ocb = &ocb;
-	spartn_out.hpac = &hpac;
-	spartn_out.gad = &gad;
-	spartn_out.lpac = &lpac;
+
+	//printf("OCB_t = %zd\n",sizeof(OCB_t));
+	//printf("HPAC_t = %zd\n", sizeof(HPAC_t));
+	//printf("GAD_t = %zd\n", sizeof(GAD_t));
+	//printf("LPAC_t = %zd\n", sizeof(LPAC_t));
+
 	int i, j, nsat;
 	int rov_ret, ret_nav, num_ssr = -1;
 	double blh[3] = { 0.0 }, dr[3] = { 0.0 };
@@ -193,6 +191,7 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 
 		nc++;
 	}
+	return 0;
 }
 
 //int obs_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fROV, int year, int doy, double *ep, double *rovpos)

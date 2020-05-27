@@ -45,14 +45,6 @@ sapcorda_ssr::sapcorda_ssr()
 	memset(&m_spartn, 0, sizeof(m_spartn));
 	memset(&m_spartn_out, 0, sizeof(m_spartn_out));
 	memset(&m_obs_vrs, 0, sizeof(m_obs_vrs));
-	memset(&ocb, 0, sizeof(ocb));
-	memset(&hpac, 0, sizeof(hpac));
-	memset(&gad, 0, sizeof(gad));
-	memset(&lpac, 0, sizeof(lpac));
-	m_spartn_out.ocb = &ocb;
-	m_spartn_out.hpac = &hpac;
-	m_spartn_out.gad = &gad;
-	m_spartn_out.lpac = &lpac;
 	m_fLOG = fopen("obsfromssr.log", "w");
 	if (m_fLOG) {
 		printf("create log success ! \n");

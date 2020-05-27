@@ -58,12 +58,11 @@ extern int decode_GAD_message(raw_spartn_t* spartn)
 {
 	if (!spartn) return 0;
 	if (!spartn->spartn_out) return 0;
-	if (!spartn->spartn_out->gad) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	GAD_t* gad = spartn->spartn_out->gad;
-	memset(gad, 0, sizeof(GAD_t));
+	GAD_t gad_o = { 0 };
+	GAD_t* gad = &gad_o;
 	//Table 6.20 Header block
 	GAD_header_t* header = &(gad->header);
 	decode_GAD_header_block(spartn, header, tab);
@@ -73,7 +72,7 @@ extern int decode_GAD_message(raw_spartn_t* spartn)
 		decode_Area_definition_block(spartn, area, tab+1);
 		//break;
 	}
-	transform_spartn_ssr(spartn);
+	transform_spartn_ssr(spartn, NULL, NULL, gad, NULL);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	slog(LOG_DEBUG, tab, "size of GAD_t = %d ", sizeof(GAD_t));
 	log_gad_to_table(spartn, gad);

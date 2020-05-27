@@ -99,12 +99,11 @@ extern int decode_LPAC_message(raw_spartn_t* spartn)
 {
 	if (!spartn) return 0;
 	if (!spartn->spartn_out) return 0;
-	if (!spartn->spartn_out->lpac) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	LPAC_t* lpac = spartn->spartn_out->lpac;
-	memset(lpac, 0, sizeof(LPAC_t));
+	LPAC_t lpac_o = { 0 };
+	LPAC_t* lpac = &lpac_o;
 	//Table 6.22 Header block
 	LPAC_header_t* header = &(lpac->header);
 	decode_LPAC_header_block(spartn, header, tab);
@@ -113,7 +112,7 @@ extern int decode_LPAC_message(raw_spartn_t* spartn)
 		LPAC_area_t* area = &(lpac->areas[i]);
 		decode_LPAC_area_block(spartn, area, tab+1);
 	}
-	transform_spartn_ssr(spartn);
+	transform_spartn_ssr(spartn, NULL, NULL, NULL, lpac);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	slog(LOG_DEBUG, tab, "size of LPAC_t = %d ", sizeof(LPAC_t));
 	log_lpac_to_table(spartn, lpac);

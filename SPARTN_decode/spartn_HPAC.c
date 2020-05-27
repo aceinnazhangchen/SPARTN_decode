@@ -82,7 +82,6 @@ void decode_troposphere_large_coefficient_block(raw_spartn_t* spartn, HPAC_tropo
 }
 //Table 6.13 Troposphere data block
 void decode_troposphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_troposphere_t* troposphere, int tab) {
-	int i;
 	uint8_t* payload = spartn->payload;
 	//Troposphere polynomial coefficient block 
 	if (area->SF040_Tropo == 1 || area->SF040_Tropo == 2) {
@@ -146,7 +145,6 @@ void decode_ionosphere_large_coefficient_block(raw_spartn_t* spartn, HPAC_ionosp
 }
 //Table 6.17 Ionosphere satellite block
 void decode_ionosphere_satellite_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_ionosphere_t* ionosphere, HPAC_ionosphere_satellite_t* sat,int tab) {
-	int i;
 	uint8_t* payload = spartn->payload;
 	//Table 6.17 Ionosphere satellite block
 	slog(LOG_DEBUG, tab, "PRN_ID = %d", sat->PRN_ID);
@@ -202,17 +200,18 @@ void decode_ionosphere_block(raw_spartn_t* spartn, HPAC_area_t* area, HPAC_ionos
 	uint8_t* payload = spartn->payload;
 	if (area->SF040_Iono == 1 || area->SF040_Iono == 2) {
 		ionosphere->SF054_Ionosphere_equation_type = getbitu(payload, spartn->offset, 3); spartn->offset += 3; slog(LOG_DEBUG, tab, "SF054_Ionosphere_equation_type = %d", ionosphere->SF054_Ionosphere_equation_type);
-		ionosphere->satellite_mask[64];
-		ionosphere->satellite_mask_len = 0;
+		uint8_t satellite_mask[64] = {0};
+		uint8_t satellite_mask_len = 0;
 		if (spartn->Subtype == 0) {
-			decode_GPS_satellite_mask(payload, &spartn->offset, ionosphere->satellite_mask, &ionosphere->satellite_mask_len);
+			decode_GPS_satellite_mask(payload, &spartn->offset, satellite_mask, &satellite_mask_len);
 		}
 		else  if (spartn->Subtype == 1) {
-			decode_GLONASS_satellite_mask(payload, &spartn->offset, ionosphere->satellite_mask, &ionosphere->satellite_mask_len);
+			decode_GLONASS_satellite_mask(payload, &spartn->offset, satellite_mask, &satellite_mask_len);
 		}
 		//Table 6.17 Ionosphere satellite block (Repeated)
-		for (i = 0; i < ionosphere->satellite_mask_len; i++) {
-			if (ionosphere->satellite_mask[i]) {
+		for (i = 0; i < satellite_mask_len; i++) {
+			if (satellite_mask[i]) {
+				if (ionosphere->ionosphere_satellite_num >= SAT_MAX) break;
 				HPAC_ionosphere_satellite_t* sat = &(ionosphere->ionosphere_satellite[ionosphere->ionosphere_satellite_num]);
 				sat->PRN_ID = i + 1;
 				decode_ionosphere_satellite_block(spartn, area, ionosphere, sat,tab+1);
@@ -247,22 +246,23 @@ extern int decode_HPAC_message(raw_spartn_t* spartn)
 {
 	if (!spartn) return 0;
 	if (!spartn->spartn_out) return 0;
-	if (!spartn->spartn_out->hpac) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	HPAC_t* hpac = spartn->spartn_out->hpac;
-	memset(hpac, 0, sizeof(HPAC_t));
+	HPAC_t hpac_o = { 0 };
+	HPAC_t* hpac = &hpac_o;
+	//memset(hpac, 0, sizeof(HPAC_t));
 	HPAC_header_t* hpac_header = &(hpac->header);
 	decode_Header_block(spartn, hpac_header, tab);
 	//Table 6.11 Atmosphere block (Repeated)
 	HPAC_atmosphere_t* atmosphere = NULL;
+	hpac_header->SF030_Area_count = hpac_header->SF030_Area_count < HPAC_MAX_ARAE? hpac_header->SF030_Area_count : HPAC_MAX_ARAE;
 	for (i = 0; i < hpac_header->SF030_Area_count; i++) {
 		atmosphere = &(hpac->atmosphere[i]);
 		decode_atmosphere_block(spartn, atmosphere, tab+1);
 		//break;
 	}
-	transform_spartn_ssr(spartn);
+	transform_spartn_ssr(spartn, NULL, hpac, NULL, NULL);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	slog(LOG_DEBUG, tab, "size of HPAC_t = %d ", sizeof(HPAC_t));
 	log_hpac_to_table(spartn, hpac);

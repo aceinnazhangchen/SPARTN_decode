@@ -17,10 +17,6 @@ public:
 	spartn_t m_spartn_out;
 private:
 	raw_spartn_t m_spartn;
-	OCB_t ocb;
-	HPAC_t hpac;
-	GAD_t gad;
-	LPAC_t lpac;
 	FILE* m_fLOG;
 public:
 	sapcorda_ssr();

@@ -13,7 +13,8 @@ extern "C"
 #define SPARTN_PREAMB 0x73 
 #define RAP_NUM       48
 #define SSR_NUM       30
-
+#define SAT_MAX		  32
+#define HPAC_MAX_ARAE 10
 #define DAY_SECOND    86400
 //#define USE_Tropo_Iono_2
 
@@ -89,7 +90,7 @@ typedef struct {
 
 typedef struct {
 	OCB_header_t header;
-	OCB_Satellite_t satellite[64];
+	OCB_Satellite_t satellite[SAT_MAX];
 	uint8_t satellite_num;
 }OCB_t;
 //=============================
@@ -173,9 +174,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t SF054_Ionosphere_equation_type;
-	uint8_t satellite_mask[64];
-	uint8_t satellite_mask_len;
-	HPAC_ionosphere_satellite_t ionosphere_satellite[64];
+	HPAC_ionosphere_satellite_t ionosphere_satellite[SAT_MAX];
 	uint8_t ionosphere_satellite_num;
 }HPAC_ionosphere_t;
 
@@ -187,7 +186,7 @@ typedef struct {
 
 typedef struct {
 	HPAC_header_t header;
-	HPAC_atmosphere_t atmosphere[32];
+	HPAC_atmosphere_t atmosphere[HPAC_MAX_ARAE];
 }HPAC_t;
 //=============================
 // SM 2-0 GAD messages 
@@ -293,10 +292,6 @@ typedef struct {
 	uint32_t Subtype;
 	uint32_t len;
 	uint32_t day;
-	OCB_t* ocb;
-	HPAC_t* hpac;
-	GAD_t* gad;
-	LPAC_t* lpac;
 	gad_ssr_t ssr_gad[RAP_NUM];
 	uint8_t ssr_offset;
     uint8_t eos;
@@ -357,7 +352,7 @@ int sread_ssr_sapcorda(unsigned char * buffer, uint32_t len, raw_spartn_t * spar
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn, uint32_t *ssr_num);
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm);
 
-void transform_spartn_ssr(raw_spartn_t* raw_spartn);
+void transform_spartn_ssr(raw_spartn_t* raw_spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac);
 void expanded_full_time(raw_spartn_t* raw_spartn);
 
 #define SSR_SAP 

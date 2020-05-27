@@ -179,24 +179,24 @@ int decode_OCB_message(raw_spartn_t* spartn)
 {
 	if (!spartn) return 0;
 	if (!spartn->spartn_out) return 0;
-	if (!spartn->spartn_out->ocb) return 0;
 	int i,tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	OCB_t* ocb= spartn->spartn_out->ocb;
-	memset(ocb, 0, sizeof(OCB_t));
+	OCB_t ocb_o = { 0 };
+	OCB_t* ocb = &ocb_o;
 	OCB_header_t* ocb_header = &ocb->header;
 	//Table 6.3 Header block 
 	decode_OCB_hearder(spartn,ocb_header, tab);
 	//Table 6.4 Satellite block (Repeated) 
 	for (i = 0; i < ocb_header->Satellite_mask_len; i++) {
 		if (ocb_header->SF011_SF012_satellite_mask[i]) {
+			if (ocb->satellite_num >= SAT_MAX) break;
 			ocb->satellite[ocb->satellite_num].PRN_ID = i + 1;
 			decode_satellite_block(spartn, &ocb->satellite[ocb->satellite_num], ocb_header->SF008_Yaw_present_flag, tab+1);
 			ocb->satellite_num++;
 		}
 	}
-	transform_spartn_ssr(spartn);
+	transform_spartn_ssr(spartn,ocb, NULL, NULL, NULL);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	slog(LOG_DEBUG, tab, "size of OCB_t = %d ", sizeof(OCB_t));
 	log_ocb_to_table(spartn, ocb);

@@ -1,5 +1,6 @@
 #include "spartn.h"
 #include "log.h"
+#include "bits.h"
 #define Leap_Sec 18.0
 #define GLO_GPS_TD  10800
 #define DAY_SECONDS 86400
@@ -87,19 +88,11 @@ sap_ssr_t* suitable_ssr(spartn_t* spartn, int prn, int sys) {
 }
 
 
-void transform_spartn_ssr(raw_spartn_t* raw_spartn)
+void transform_spartn_ssr(raw_spartn_t* raw_spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac)
 {
     int i = 0, j = 0, n = 0, m=0;
     if (!raw_spartn->spartn_out) return;
     spartn_t* spartn = raw_spartn->spartn_out;
-    if (!spartn->ocb) return;
-    if (!spartn->hpac) return;
-    if (!spartn->gad) return;
-    if (!spartn->lpac) return;
-    OCB_t* ocb = spartn->ocb;
-    HPAC_t* hpac = spartn->hpac;
-    GAD_t* gad = spartn->gad;
-    LPAC_t* lpac = spartn->lpac;
     sap_ssr_t* ssr = NULL;
     OCB_Satellite_t* sat_obc = NULL;
     gad_ssr_t* ssr_gad = NULL;
@@ -112,10 +105,11 @@ void transform_spartn_ssr(raw_spartn_t* raw_spartn)
     //}
 
     if (spartn->type == 0) {
+		if (!ocb) return;
         //if (spartn->eos == 1) {
         //    spartn->ssr_offset = 0;
         //}
-        for (i = 0; i < ocb->satellite_num; ++i) {
+        for (i = 0; i < ocb->satellite_num && i < SAT_MAX; ++i) {
             //if (spartn->ssr_offset >= SSR_NUM)break;
             //ssr = &spartn->ssr[spartn->ssr_offset];
             sat_obc = &ocb->satellite[i];
@@ -172,6 +166,7 @@ void transform_spartn_ssr(raw_spartn_t* raw_spartn)
         spartn->eos = ocb->header.SF010_EOS;
     }
     else if (spartn->type == 1) {
+		if (!hpac) return;
         for (i = 0; i < hpac->header.SF030_Area_count; ++i) {
             for (j = 0; j < SSR_NUM; ++j) {
                 ssr = &spartn->ssr[j];
@@ -196,7 +191,7 @@ void transform_spartn_ssr(raw_spartn_t* raw_spartn)
                 ssr->tro_coef[(m + ssr->rap_num) * 3 + 0] = hpac->atmosphere[i].troposphere.small_coefficient.SF045_T00;
                 ssr->tro_coef[(m + ssr->rap_num) * 3 + 1] = hpac->atmosphere[i].troposphere.small_coefficient.SF046_T01;
                 ssr->tro_coef[(m + ssr->rap_num) * 3 + 2] = hpac->atmosphere[i].troposphere.small_coefficient.SF046_T10;
-                for (n = 0; n < hpac->atmosphere[i].ionosphere.ionosphere_satellite_num; ++n) {
+                for (n = 0; n < hpac->atmosphere[i].ionosphere.ionosphere_satellite_num && n < SAT_MAX; ++n) {
                     if (ssr->prn == hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].PRN_ID) {
                         ssr->stec_coef[(m + ssr->rap_num) * 3 + 0] = hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].small_coefficient.SF057_C00;
                         ssr->stec_coef[(m + ssr->rap_num) * 3 + 1] = hpac->atmosphere[i].ionosphere.ionosphere_satellite[n].small_coefficient.SF058_C01;
@@ -209,6 +204,7 @@ void transform_spartn_ssr(raw_spartn_t* raw_spartn)
         ssr->rap_num += hpac->header.SF030_Area_count;
     }
     else if (spartn->type == 2) {
+		if (!gad) return;
         for (i = 0; i < gad->header.SF030_Area_count; ++i) {
             for (j = 0; j < RAP_NUM; ++j) {
                 ssr_gad = &spartn->ssr_gad[j];
