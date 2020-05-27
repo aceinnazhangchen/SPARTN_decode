@@ -1,5 +1,5 @@
 #ifndef _GEN_VRS_OBS_H_
-#define _GEN_VRS_OBS_H__
+#define _GEN_VRS_OBS_H_
 
 #include "rtcm.h"
 #include "ephemeris.h"

@@ -490,19 +490,19 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
     double ep[6];
     int sys;
     time2epoch(obs_vrs->time, ep);
-    fprintf(fLOG, "%4.0f %2.0f %2.0f %2.0f %2.0f %4.1f %3i", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5],nobs);
+    if(fLOG)fprintf(fLOG, "%4.0f %2.0f %2.0f %2.0f %2.0f %4.1f %3i", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5],nobs);
 
     for (i = 0; i < obs_vrs->n; i++)
     {
         if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
         sys = satsys(obs_vrs->data[i].sat, &prn);
-        fprintf(fLOG, "%c%02d", sys2char(sys), prn);
+		if (fLOG)fprintf(fLOG, "%c%02d", sys2char(sys), prn);
     }
-    fprintf(fLOG, "\n"); 
+	if (fLOG)fprintf(fLOG, "\n");
     for (i = 0; i < obs_vrs->n; i++)
     {
         if (obs_vrs->data[i].P[0] == 0 || obs_vrs->data[i].P[1] == 0 || obs_vrs->data[i].L[0] == 0 || obs_vrs->data[i].L[1] == 0)   continue;
-        fprintf(fLOG, "%14.4f,%14.4f,%14.4f,%14.4f\n", obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
+		if (fLOG)fprintf(fLOG, "%14.4f,%14.4f,%14.4f,%14.4f\n", obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
     }
     return 1;
 }
