@@ -80,6 +80,11 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 	//printf("GAD_t = %zd\n", sizeof(GAD_t));
 	//printf("LPAC_t = %zd\n", sizeof(LPAC_t));
 
+	//printf("OCB_Satellite_t = %zd\n",sizeof(OCB_Satellite_t));
+	//printf("HPAC_atmosphere_t = %zd\n", sizeof(HPAC_atmosphere_t));
+	//printf("GAD_area_t = %zd\n", sizeof(GAD_area_t));
+	//printf("LPAC_area_t = %zd\n", sizeof(LPAC_area_t));
+
 	int i, j, nsat;
 	int rov_ret, ret_nav, num_ssr = -1;
 	double blh[3] = { 0.0 }, dr[3] = { 0.0 };

@@ -291,7 +291,7 @@ typedef struct {
 	uint32_t type;
 	uint32_t Subtype;
 	uint32_t len;
-	uint32_t day;
+	uint32_t time;
 	gad_ssr_t ssr_gad[RAP_NUM];
 	uint8_t ssr_offset;
     uint8_t eos;
@@ -319,16 +319,15 @@ typedef struct {
     uint32_t Message_CRC;				//
     uint8_t* payload;
     uint32_t offset;
-	spartn_t* spartn_out;
 } raw_spartn_t;
 
 void decode_GPS_satellite_mask(uint8_t* data, int *pos, uint8_t* satellite_mask, uint8_t *satellite_mask_len);
 void decode_GLONASS_satellite_mask(uint8_t* data, int *pos, uint8_t* satellite_mask, uint8_t *satellite_mask_len);
 
-int decode_OCB_message(raw_spartn_t* spartn);
-int decode_HPAC_message(raw_spartn_t* spartn);
-int decode_GAD_message(raw_spartn_t* spartn);
-int decode_LPAC_message(raw_spartn_t* spartn);
+int decode_OCB_message(raw_spartn_t* spartn, spartn_t* spartn_out);
+int decode_HPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out);
+int decode_GAD_message(raw_spartn_t* spartn, spartn_t* spartn_out);
+int decode_LPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out);
 
 int input_spartn_data(raw_spartn_t* spartn, spartn_t* spartn_out, uint8_t data);
 
@@ -342,6 +341,9 @@ void close_hpac_table_file();
 void close_gad_table_file();
 void close_lpac_table_file();
 
+void ssr_append_ocb_sat(spartn_t* spartn, OCB_Satellite_t* sat_obc);
+void ssr_append_hpac_sat(spartn_t * spartn, HPAC_atmosphere_t * atmosphere);
+void ssr_append_gad_sat(spartn_t * spartn, GAD_area_t * area);
 
 int gen_rtcm_vrsdata(obs_t * obs, rtcm_t * rtcm, unsigned char * buff);
 
@@ -352,7 +354,7 @@ int sread_ssr_sapcorda(unsigned char * buffer, uint32_t len, raw_spartn_t * spar
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn, uint32_t *ssr_num);
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm);
 
-void transform_spartn_ssr(raw_spartn_t* raw_spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac);
+void transform_spartn_ssr(spartn_t* spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac);
 void expanded_full_time(raw_spartn_t* raw_spartn);
 
 #define SSR_SAP 

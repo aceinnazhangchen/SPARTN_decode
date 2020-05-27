@@ -17,6 +17,30 @@ void close_ocb_table_file() {
 	close_table_file_ex(&ocb_table_file);
 }
 
+void log_ocb_table_header(uint32_t Subtype,OCB_header_t* header) {
+	if (Subtype == 0) {
+		table_log_ex(ocb_table_file, "%d%8s, %3s,%3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s", header->SF010_EOS, "Time", "Sat", "Iod", "Ad", "Cd", "Rd", "Clk", "L1C", "L2W", "L2L", "C1C", "C2W", "C2L");
+	}
+	else {
+		table_log_ex(ocb_table_file, "%d%8s, %3s,%3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s %9s,%9s %9s", header->SF010_EOS, "Time", "Sat", "Iod", "Ad", "Cd", "Rd", "Clk", "L1C", "L2C", "", "C1C", "C2C", "");
+	}
+}
+
+void log_ocb_sat_to_table(uint32_t Subtype, OCB_Satellite_t* ocb_sat) {
+	if (Subtype == 0) {
+		table_log_ex(ocb_table_file, "%9d, G%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb_sat->PRN_ID, ocb_sat->orbit.SF018_SF019_IODE,
+			ocb_sat->orbit.SF020_along, ocb_sat->orbit.SF020_cross, ocb_sat->orbit.SF020_radial, ocb_sat->clock.SF020_Clock_correction,
+			ocb_sat->GPS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb_sat->GPS_bias.Phase_bias[1].SF020_Phase_bias_correction, ocb_sat->GPS_bias.Phase_bias[2].SF020_Phase_bias_correction,
+			ocb_sat->GPS_bias.SF029_Code_bias_correction[0], ocb_sat->GPS_bias.SF029_Code_bias_correction[1], ocb_sat->GPS_bias.SF029_Code_bias_correction[2]);
+	}
+	else {
+		table_log_ex(ocb_table_file, "%9d, R%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb_sat->PRN_ID, ocb_sat->orbit.SF018_SF019_IODE,
+			ocb_sat->orbit.SF020_along, ocb_sat->orbit.SF020_cross, ocb_sat->orbit.SF020_radial, ocb_sat->clock.SF020_Clock_correction,
+			ocb_sat->GLONASS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb_sat->GLONASS_bias.Phase_bias[1].SF020_Phase_bias_correction, "",
+			ocb_sat->GLONASS_bias.SF029_Code_bias_correction[0], ocb_sat->GLONASS_bias.SF029_Code_bias_correction[1], "");
+	}
+}
+/*
 void log_ocb_to_table(raw_spartn_t* spartn, OCB_t* ocb) {
 	int i;
 	uint32_t time = spartn->GNSS_time_type;
@@ -41,7 +65,7 @@ void log_ocb_to_table(raw_spartn_t* spartn, OCB_t* ocb) {
 		}
 	}
 }
-
+*/
 void decode_bias_mask(uint8_t* data, int *pos, uint8_t *mask_array, uint32_t effective_len, uint32_t subType) {
 	uint32_t i;
 	int offset = *pos;
@@ -175,30 +199,37 @@ void decode_OCB_hearder(raw_spartn_t* spartn, OCB_header_t* ocb_header,int tab) 
 	}
 }
 // SM 0-0/0-1  OCB messages 
-int decode_OCB_message(raw_spartn_t* spartn) 
+int decode_OCB_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 {
 	if (!spartn) return 0;
-	if (!spartn->spartn_out) return 0;
 	int i,tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	OCB_t ocb_o = { 0 };
-	OCB_t* ocb = &ocb_o;
-	OCB_header_t* ocb_header = &ocb->header;
+	OCB_header_t ocb_header = {0};
 	//Table 6.3 Header block 
-	decode_OCB_hearder(spartn,ocb_header, tab);
+	decode_OCB_hearder(spartn,&ocb_header, tab);
 	//Table 6.4 Satellite block (Repeated) 
-	for (i = 0; i < ocb_header->Satellite_mask_len; i++) {
-		if (ocb_header->SF011_SF012_satellite_mask[i]) {
-			if (ocb->satellite_num >= SAT_MAX) break;
-			ocb->satellite[ocb->satellite_num].PRN_ID = i + 1;
-			decode_satellite_block(spartn, &ocb->satellite[ocb->satellite_num], ocb_header->SF008_Yaw_present_flag, tab+1);
-			ocb->satellite_num++;
+	int satellite_num = 0;
+	OCB_Satellite_t satellite = { 0 };
+	log_ocb_table_header(spartn->Subtype, &ocb_header);
+	for (i = 0; i < ocb_header.Satellite_mask_len; i++) {
+		if (ocb_header.SF011_SF012_satellite_mask[i]) {
+			//if (ocb->satellite_num >= SAT_MAX) break;
+			//ocb->satellite[ocb->satellite_num].PRN_ID = i + 1;
+			//decode_satellite_block(spartn, &ocb->satellite[ocb->satellite_num], ocb_header->SF008_Yaw_present_flag, tab+1);
+			//ocb->satellite_num++;
+			if (satellite_num >= SSR_NUM) break;
+			satellite_num++;
+			memset(&satellite, 0, sizeof(OCB_Satellite_t));
+			satellite.PRN_ID = i + 1;
+			decode_satellite_block(spartn, &satellite, ocb_header.SF008_Yaw_present_flag, tab + 1);
+			ssr_append_ocb_sat(spartn_out, &satellite);
+			log_ocb_sat_to_table(spartn->Subtype, &satellite);
 		}
 	}
-	transform_spartn_ssr(spartn,ocb, NULL, NULL, NULL);
+	spartn_out->eos = ocb_header.SF010_EOS;
+	//transform_spartn_ssr(spartn_out,ocb, NULL, NULL, NULL);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
-	slog(LOG_DEBUG, tab, "size of OCB_t = %d ", sizeof(OCB_t));
-	log_ocb_to_table(spartn, ocb);
+	//log_ocb_to_table(spartn, ocb);
 	return 1;
 }

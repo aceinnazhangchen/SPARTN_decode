@@ -22,18 +22,26 @@ void close_gad_table_file() {
 	close_table_file_ex(&gad_table_file);
 }
 
-void log_gad_to_table(raw_spartn_t* spartn, GAD_t* gad) {
-	int i;
-	uint32_t time = spartn->GNSS_time_type;
-	for (i = 0; i < gad->header.SF030_Area_count; i++) {
-		GAD_area_t* area = &gad->areas[i];
-		table_log_ex(gad_table_file, "%9d,%5d,%8.3f,%8.3f,%5d,%5d,%7.3f,%7.3f", time, area->SF031_Area_ID, 
-			area->SF032_Area_reference_latitude, area->SF033_Area_reference_longitude,
-			area->SF034_Area_latitude_grid_node_count, area->SF035_Area_longitude_grid_node_count,
-			area->SF036_Area_latitude_grid_node_spacing, area->SF037_Area_longitude_grid_node_spacing);
-	}
-	table_log_ex(gad_table_file, "");
+void log_gad_area_to_table(uint32_t time, GAD_area_t* area) {
+	table_log_ex(gad_table_file, "%9d,%5d,%8.3f,%8.3f,%5d,%5d,%7.3f,%7.3f", time, area->SF031_Area_ID,
+		area->SF032_Area_reference_latitude, area->SF033_Area_reference_longitude,
+		area->SF034_Area_latitude_grid_node_count, area->SF035_Area_longitude_grid_node_count,
+		area->SF036_Area_latitude_grid_node_spacing, area->SF037_Area_longitude_grid_node_spacing);
 }
+
+//void log_gad_to_table(raw_spartn_t* spartn, GAD_t* gad) {
+//	int i;
+//	uint32_t time = spartn->GNSS_time_type;
+//	for (i = 0; i < gad->header.SF030_Area_count; i++) {
+//		GAD_area_t* area = &gad->areas[i];
+//		table_log_ex(gad_table_file, "%9d,%5d,%8.3f,%8.3f,%5d,%5d,%7.3f,%7.3f", time, area->SF031_Area_ID, 
+//			area->SF032_Area_reference_latitude, area->SF033_Area_reference_longitude,
+//			area->SF034_Area_latitude_grid_node_count, area->SF035_Area_longitude_grid_node_count,
+//			area->SF036_Area_latitude_grid_node_spacing, area->SF037_Area_longitude_grid_node_spacing);
+//	}
+//	table_log_ex(gad_table_file, "");
+//}
+
 //Table 6.21 Area definition block 
 void decode_Area_definition_block(raw_spartn_t* spartn, GAD_area_t* area, int tab) {
 	uint8_t* payload = spartn->payload;
@@ -54,27 +62,28 @@ void decode_GAD_header_block(raw_spartn_t* spartn, GAD_header_t* header,int tab)
 	header->SF030_Area_count = getbitu(payload, spartn->offset, 5) + 1;  spartn->offset += 5; slog(LOG_DEBUG, tab, "SF030_Area_count = %d", header->SF030_Area_count);
 }
 // SM 2-0 GAD messages
-extern int decode_GAD_message(raw_spartn_t* spartn)
+extern int decode_GAD_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 {
 	if (!spartn) return 0;
-	if (!spartn->spartn_out) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	GAD_t gad_o = { 0 };
-	GAD_t* gad = &gad_o;
 	//Table 6.20 Header block
-	GAD_header_t* header = &(gad->header);
-	decode_GAD_header_block(spartn, header, tab);
+	GAD_header_t header = { 0 };
+	decode_GAD_header_block(spartn, &header, tab);
 	//Table 6.21 (Repeated)
-	for (i = 0; i < header->SF030_Area_count; i++) {
-		GAD_area_t* area = &(gad->areas[i]);
-		decode_Area_definition_block(spartn, area, tab+1);
-		//break;
+	GAD_area_t area = { 0 };
+	for (i = 0; i < header.SF030_Area_count; i++) {
+		//GAD_area_t* area = &(gad->areas[i]);
+		//decode_Area_definition_block(spartn, area, tab+1);
+		memset(&area, 0, sizeof(GAD_area_t));
+		decode_Area_definition_block(spartn, &area, tab + 1);
+		ssr_append_gad_sat(spartn_out,&area);
+		log_gad_area_to_table(spartn->GNSS_time_type, &area);
 	}
-	transform_spartn_ssr(spartn, NULL, NULL, gad, NULL);
+	table_log_ex(gad_table_file, "");
+	//transform_spartn_ssr(spartn_out, NULL, NULL, gad, NULL);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
-	slog(LOG_DEBUG, tab, "size of GAD_t = %d ", sizeof(GAD_t));
-	log_gad_to_table(spartn, gad);
+	//log_gad_to_table(spartn, gad);
 	return 1;
 }

@@ -22,6 +22,24 @@ void close_hpac_table_file() {
 	close_table_file_ex(&hpac_table_file);
 }
 
+void log_hpac_area_to_table(uint32_t Subtype, uint32_t time, HPAC_atmosphere_t* atmosphere) {
+	int j;
+	char sys = ' ';
+	sys = Subtype == 0? 'G':'R';
+	HPAC_area_t* area = &atmosphere->area;
+	HPAC_troposphere_t* troposphere = &atmosphere->troposphere;
+
+	HPAC_troposphere_large_t* large_coefficient = &(troposphere->large_coefficient);
+	table_log_ex(hpac_table_file, "%9d,%4d,%3d,%3d,%3d,%7.3f,%3d,%7.3f,%7.3f,%7.3f", time, area->SF031_Area_ID, area->SF039_Number_grid_points_present, area->SF040_Tropo, area->SF040_Iono, troposphere->SF043_Area_average_vertical_hydrostatic_delay,
+		troposphere->SF044_Troposphere_polynomial_coefficient_size_indicator, large_coefficient->SF048_T00, large_coefficient->SF049_T01, large_coefficient->SF049_T10, large_coefficient->SF050_T11);
+	table_log_ex(hpac_table_file, "%30s %3s,%3s,%7s,%7s,%7s", "", "sat", "Igp", "C00", "C01", "C10");
+	HPAC_ionosphere_t* ionosphere = &atmosphere->ionosphere;
+	for (j = 0; j < ionosphere->ionosphere_satellite_num; j++) {
+		HPAC_ionosphere_satellite_t* sat = &ionosphere->ionosphere_satellite[j];
+		table_log_ex(hpac_table_file, "%30s %c%02d,%3d,%7.3f,%7.3f,%7.3f", "", sys, sat->PRN_ID, sat->SF056_Ionosphere_satellite_polynomial_block, sat->small_coefficient.SF057_C00, sat->small_coefficient.SF058_C01, sat->small_coefficient.SF058_C10);
+	}
+}
+/*
 void log_hpac_to_table(raw_spartn_t* spartn, HPAC_t* hpac) {
 	int i,j;
 	char sys = ' ';
@@ -48,6 +66,7 @@ void log_hpac_to_table(raw_spartn_t* spartn, HPAC_t* hpac) {
 	}
 	table_log_ex(hpac_table_file, "==============================================================");
 }
+*/
 //Table 6.12 Area data block 
 void decode_area_data_block(raw_spartn_t* spartn, HPAC_area_t* area, int tab) {
 	uint8_t* payload = spartn->payload;
@@ -242,29 +261,29 @@ void decode_Header_block(raw_spartn_t* spartn, HPAC_header_t* hearder,int tab) {
 	hearder->SF030_Area_count = getbitu(payload, spartn->offset, 5) + 1;  spartn->offset += 5; slog(LOG_DEBUG, tab, "SF030_Area_count = %d", hearder->SF030_Area_count);
 }
 // SM 1-0/1-1  HPAC messages 
-extern int decode_HPAC_message(raw_spartn_t* spartn)
+extern int decode_HPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 {
 	if (!spartn) return 0;
-	if (!spartn->spartn_out) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	HPAC_t hpac_o = { 0 };
-	HPAC_t* hpac = &hpac_o;
 	//memset(hpac, 0, sizeof(HPAC_t));
-	HPAC_header_t* hpac_header = &(hpac->header);
-	decode_Header_block(spartn, hpac_header, tab);
+	HPAC_header_t hpac_header = { 0 };
+	decode_Header_block(spartn, &hpac_header, tab);
 	//Table 6.11 Atmosphere block (Repeated)
-	HPAC_atmosphere_t* atmosphere = NULL;
-	hpac_header->SF030_Area_count = hpac_header->SF030_Area_count < HPAC_MAX_ARAE? hpac_header->SF030_Area_count : HPAC_MAX_ARAE;
-	for (i = 0; i < hpac_header->SF030_Area_count; i++) {
-		atmosphere = &(hpac->atmosphere[i]);
-		decode_atmosphere_block(spartn, atmosphere, tab+1);
-		//break;
+	HPAC_atmosphere_t atmosphere = { 0 };
+	hpac_header.SF030_Area_count = hpac_header.SF030_Area_count < HPAC_MAX_ARAE? hpac_header.SF030_Area_count : HPAC_MAX_ARAE;
+	for (i = 0; i < hpac_header.SF030_Area_count; i++) {
+		//atmosphere = &(hpac->atmosphere[i]);
+		//decode_atmosphere_block(spartn, atmosphere, tab+1);
+		memset(&atmosphere, 0, sizeof(HPAC_atmosphere_t));
+		decode_atmosphere_block(spartn, &atmosphere, tab + 1);
+		ssr_append_hpac_sat(spartn_out, &atmosphere);
+		log_hpac_area_to_table(spartn->Subtype, spartn->GNSS_time_type, &atmosphere);
 	}
-	transform_spartn_ssr(spartn, NULL, hpac, NULL, NULL);
+	table_log_ex(hpac_table_file, "==============================================================");
+	//transform_spartn_ssr(spartn_out, NULL, hpac, NULL, NULL);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
-	slog(LOG_DEBUG, tab, "size of HPAC_t = %d ", sizeof(HPAC_t));
-	log_hpac_to_table(spartn, hpac);
+	//log_hpac_to_table(spartn, hpac);
 	return 1;
 }

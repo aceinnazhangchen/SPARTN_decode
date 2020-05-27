@@ -33,20 +33,20 @@ int decode_Group_Authentication(raw_spartn_t* spartn) {
     return 1;
 }
 
-int decode_spartn(raw_spartn_t* spartn) {
+int decode_spartn(raw_spartn_t* spartn, spartn_t* spartn_out) {
     switch (spartn->type)
     {
     case 0:
-        return decode_OCB_message(spartn);
+        return decode_OCB_message(spartn, spartn_out);
         break;
     case 1:
-        return decode_HPAC_message(spartn);
+        return decode_HPAC_message(spartn, spartn_out);
         break;
     case 2:
-        return decode_GAD_message(spartn);
+        return decode_GAD_message(spartn, spartn_out);
         break;
     case 3:
-        return decode_LPAC_message(spartn);
+        return decode_LPAC_message(spartn, spartn_out);
         break;
     case 4:
         //if (spartn->Subtype == 0) {
@@ -159,11 +159,11 @@ int input_spartn_data(raw_spartn_t* spartn, spartn_t* spartn_out, uint8_t data) 
         if (spartn->Message_CRC == Result_Message_CRC) {
            expanded_full_time(spartn);
             slog(LOG_DEBUG, tab, "==========");
-            spartn->spartn_out = spartn_out;
             spartn_out->type = spartn->type;
             spartn_out->Subtype = spartn->Subtype;
+			spartn_out->time = spartn->GNSS_time_type;
             spartn_out->len = spartn->len;
-            decode_spartn(spartn);
+            decode_spartn(spartn, spartn_out);
             slog(LOG_DEBUG, tab, "==========");
         }
         memset(spartn, 0, sizeof(raw_spartn_t));

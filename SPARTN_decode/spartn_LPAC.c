@@ -95,10 +95,9 @@ void decode_LPAC_header_block(raw_spartn_t* spartn, LPAC_header_t* header,int ta
 	header->SF071_LPAC_area_count = getbitu(payload, spartn->offset, 2) + 1;  spartn->offset += 2; slog(LOG_DEBUG, tab, "SF071_LPAC_area_count = %d", header->SF071_LPAC_area_count);
 }
 // SM 3-0 LPAC messages 
-extern int decode_LPAC_message(raw_spartn_t* spartn)
+extern int decode_LPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 {
 	if (!spartn) return 0;
-	if (!spartn->spartn_out) return 0;
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
@@ -112,7 +111,7 @@ extern int decode_LPAC_message(raw_spartn_t* spartn)
 		LPAC_area_t* area = &(lpac->areas[i]);
 		decode_LPAC_area_block(spartn, area, tab+1);
 	}
-	transform_spartn_ssr(spartn, NULL, NULL, NULL, lpac);
+	transform_spartn_ssr(spartn_out, NULL, NULL, NULL, lpac);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	slog(LOG_DEBUG, tab, "size of LPAC_t = %d ", sizeof(LPAC_t));
 	log_lpac_to_table(spartn, lpac);
