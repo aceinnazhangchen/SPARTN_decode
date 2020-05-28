@@ -399,7 +399,7 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
 {
     obs_t obs_osr = { 0.0 };
     int i, j, prn;
-    double cbias[2] = { 0.0 }, pbias[2] = { 0.0 }, dr[3] = { 0.0 };
+    double cbias[2] = { 0.0 }, pbias[2] = { 0.0 }, dr[3] = { 0.0 }, dotl[3] = { 0.0 };
     double P[2] = { 0.0 }, L[2] = { 0.0 };
     double rs[6] = { 0.0 }, rr[6] = { 0.0 }, phw = 0.0, phw2 = 0.0;
     double stec = 0.0, strop = 0.0;
@@ -407,9 +407,14 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
     double w1 = 0.0, w2 = 0.0;
     double grav_delay = 0.0;
     double soltide = 0.0;
+    double otload = 0.0;
 
     /* earth tides correction */
     tidedisp(time, rcvpos, 1, NULL, dr);
+
+    //ComputeSolidEarthTideDisplacement(gpst2utc(time), rcvpos, dr);
+
+    tide_oload_trm(time, rcvpos, dotl);
 
     obs_vrs->time = time;
     int obstime = obs_vrs->time.time;
@@ -429,6 +434,7 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         obs_vrs->data[i].sys = sys;
         obs_vrs->data[i].prn = prn;
 
+        otload  = vec_vrs[i].e[0] * dotl[0] + vec_vrs[i].e[1] * dotl[1] + vec_vrs[i].e[2] * dotl[2];
         soltide = vec_vrs[i].e[0] * dr[0] + vec_vrs[i].e[1] * dr[1] + vec_vrs[i].e[2] * dr[2];
         vec_vrs[i].r -= soltide;
 

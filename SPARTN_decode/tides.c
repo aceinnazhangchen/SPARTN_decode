@@ -22,12 +22,39 @@
 *           2017/04/11 1.2  fix bug on calling geterp() in timdedisp()
 *-----------------------------------------------------------------------------*/
 #include "tides.h"
+#include "OTL_GridData.h"
+
 #define MJD_J2000   51544.5
 #define SQR(x)      ((x)*(x))
 #define AS2R        (D2R/3600.0)    /* arc sec to radian */
 #define GME         398.6005e12     /* earth gravitational constant */
 #define GMS         1.3271250e20    /* sun gravitational constant */
 #define GMM         4.9027890e12    /* moon gravitational constant */
+
+#define mArcSec2Rad     4.84813681109536E-006   // Seconds of arc to radians factor
+#define mSec2Rad        7.27220521664304e-005   // Seconds of time to radians factor
+#define mJ2000          2451545.000             // Julian date 2000 January 1.5
+#define mAU             1.49597870700E+011      // Astronmomical constant
+#define mSunMassRatio   3.32946038E+005         // Sun/Earth mass ratio
+#define mMoonMassRatio  1.23000340E-002         // Moon/Earth mass ratio
+#define mRE4            1.654913319583966E+027  // Equatorial earth radius**4
+#define mRE             6.37813655E+006         // Equatorial earth radius
+#define mH20            6.07800000E-001         // 2nd degree Love number
+#define mL20            8.47000000E-002         // 2nd degree Shida number
+#define mH3             2.92000000E-001         // 3rd degree Love number
+#define mL3             1.50000000E-002         // 3rd degree Shida number
+#define mMinTimeChange  30.0                    // Minimum time change required for cache update
+#define mMinPosChange   2000.0                  // Minimum position change required for cache update
+
+#define mResolution     1
+#define mMin_lat        -89
+#define mMax_lat        89
+#define mMin_lon        -180
+#define mMax_lon        180
+#define mNconst         11
+#define mNcomp          3
+#define mN_lat          (mMax_lat - mMin_lat) / mResolution + 1
+#define mN_lon          (mMax_lon - mMin_lon) / mResolution + 1
 
 /* coordinate rotation matrix ------------------------------------------------*/
 #define Rx(t,X) do { \
@@ -44,7 +71,6 @@
     (X)[8]=1.0; (X)[2]=(X)[5]=(X)[6]=(X)[7]=0.0; \
     (X)[0]=(X)[4]=cos(t); (X)[3]=sin(t); (X)[1]=-(X)[3]; \
 } while (0)
-
 
 
 // Rectangular Coordinates -> North, East, Up Components
@@ -459,27 +485,6 @@ void sunmoonpos(gtime_t tutc, const double *erpv, double *rsun,double *rmoon, do
 }
 
 
-// Sun's position
-///////////////////////////////////////////////////////////////////////////
-//double Sun(double Mjd_TT) 
-//{
-//    double r_sun[3] = { 0.0 };
-//    const double eps = 23.43929111 / RHO_DEG;
-//    const double T = (Mjd_TT - MJD_J2000) / 36525.0;
-//
-//    double M = 2.0*PI * Frac(0.9931267 + 99.9973583*T);
-//    double L = 2.0*PI * Frac(0.7859444 + M / 2.0 / PI + (6892.0*sin(M) + 72.0*sin(2.0*M)) / 1296.0e3);
-//    double r = 149.619e9 - 2.499e9*cos(M) - 0.021e9*cos(2 * M);
-//
-//    r_Sun << r * cos(L) << r * sin(L) << 0.0; r_Sun = rotX(-eps) * r_Sun;
-//
-//    return    rotZ(GMST(Mjd_TT))
-//        * NutMatrix(Mjd_TT)
-//        * PrecMatrix(MJD_J2000, Mjd_TT)
-//        * r_Sun;
-//}
-
-
 /* solar/lunar tides (ref [2] 7) ---------------------------------------------*/
 static void tide_pl(const double *eu, const double *rp, double GMp,
                     const double *pos, double *dr)
@@ -521,6 +526,232 @@ static void tide_pl(const double *eu, const double *rp, double GMp,
     
     trace(5,"tide_pl : dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
 }
+
+//=============================================================================
+// Set Indexes of interpolation corners
+//-----------------------------------------------------------------------------
+int SetIndIntCorner(const double latitudeD,const double longitudeD)
+{
+    //===================
+    // Local declarations
+    double lat = latitudeD;
+    double lon = longitudeD;
+    const double eps = 1e-10;
+
+    //==========================
+    // Check for lat/long limits
+    if (lat >= mMax_lat + 1.1) return 0;
+    else if (lat >= mMax_lat) lat = mMax_lat - eps;
+
+    if (lat <= mMin_lat - 1.1) return 0;
+    else if (lat <= mMin_lat) lat = mMin_lat + eps;
+
+    if (lon >= mMax_lon + 1.1) return 0;
+    else if (lon >= mMax_lon) lon = mMax_lon - eps;
+
+    if (lon <= mMin_lon - 1.1) return 0;
+    else if (lon <= mMin_lon) lon = mMin_lon + eps;
+
+    // Latitude
+    mIntCorner[0].lat = (floor((lat - mMin_lat) / mResolution) + 1) * mResolution + mMin_lat;
+    mIntCorner[1].lat = mIntCorner[0].lat;
+    mIntCorner[2].lat = floor((lat - mMin_lat) / mResolution) * mResolution + mMin_lat;
+    mIntCorner[3].lat = mIntCorner[2].lat;
+
+    mIntCorner[0].latidx = GetLatIdx(mIntCorner[0].lat);
+    mIntCorner[1].latidx = mIntCorner[0].latidx;
+    mIntCorner[2].latidx = mIntCorner[0].latidx - 1;
+    mIntCorner[3].latidx = mIntCorner[2].latidx;
+
+    // Longitude
+    mIntCorner[1].lon = (floor((lon - mMin_lon) / mResolution) + 1) * mResolution + mMin_lon;
+    mIntCorner[3].lon = mIntCorner[1].lon;
+    mIntCorner[0].lon = floor((lon - mMin_lon) / mResolution) * mResolution + mMin_lon;
+    mIntCorner[2].lon = mIntCorner[0].lon;
+
+    mIntCorner[1].lonidx = GetLonIdx(mIntCorner[1].lon);
+    mIntCorner[3].lonidx = mIntCorner[1].lonidx;
+    mIntCorner[0].lonidx = mIntCorner[3].lonidx - 1;
+    mIntCorner[2].lonidx = mIntCorner[0].lonidx;
+
+    return 1;
+}
+
+//=============================================================================
+// Get Index of given Latitude
+//-----------------------------------------------------------------------------
+int GetLatIdx(const double lat)
+{
+    if (!fmod((lat - mMin_lat) / mResolution, 1.) &&
+        (lat <= mMax_lat) &&
+        (lat >= mMin_lat))
+    {
+        return (int)floor((lat - mMin_lat) / mResolution);
+    }
+    else
+    {
+        return -1;
+    }
+}
+//=============================================================================
+
+//=============================================================================
+// Get Index of given Longitude
+//-----------------------------------------------------------------------------
+int GetLonIdx(const double lon_given)
+{
+    double lon = lon_given;
+    if (lon > 180)
+    {
+        lon -= 360.0;
+    }
+    if (!fmod((lon - mMin_lon) / mResolution, 1.) &&
+        (lon <= mMax_lon) &&
+        (lon >= mMin_lon))
+    {
+        return (int)floor((lon - mMin_lon) / mResolution);
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+
+//=============================================================================
+// Interpolate amplitudes for given position
+//-----------------------------------------------------------------------------
+int InterpolateAmplitudes(const double latitudeDegrees, const double longitudeDegrees)
+{
+    double longitudeD = longitudeDegrees;
+    double latitudeD  = latitudeDegrees;
+
+    //======================
+    // Check longitude range
+    //----------------------
+    if (longitudeD > 180)
+    {
+        longitudeD -= 360.0;
+    }
+    //======================
+
+    // Set corners and return 0 if not possible
+    if (!SetIndIntCorner(latitudeD, longitudeD))
+    {
+        return 0;
+    }
+
+    for (int con = 0; con < mNconst; con++)
+    {
+        for (int comp = 0; comp < mNcomp; comp++)
+        {
+            mAmplitude[con][comp][0] = 0.0;
+            mAmplitude[con][comp][1] = 0.0;
+            for (int node = 0; node < 4; node++)
+            {
+                for (int cossin = 0; cossin < 2; cossin++)
+                {
+                    int iHardcodedGrid = cossin + (comp * 2) + (con * 2 * mNcomp) + (mIntCorner[node].lonidx * 2 * mNcomp * mNconst) + (mIntCorner[node].latidx * 2 * mNcomp * mNconst * mN_lon);
+                    mAmplitude[con][comp][cossin] += (1 - fabs(mIntCorner[node].lat - latitudeD) / mResolution) *
+                                                     (1 - fabs(mIntCorner[node].lon - longitudeD) / mResolution) * sGrid[iHardcodedGrid] / 2.0;
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+//=============================================================================
+// Get UEN Displacement for given time
+//-----------------------------------------------------------------------------
+int GetOtlDisplacement(gtime_t gpsTime, double *stationGeod, double *xyzDisplacement)
+{
+    double elapsedTimeSeconds;
+    const int cosine = 0;
+    const int sine = 1;
+    double uen[3];
+    double phaseArgument;
+    //========================================
+    // Set the reference time to 01Jan2000 12h
+    const double ep2000[] = { 2000,1,1,12,0,0 };
+    gtime_t gpsTime0 = epoch2time(ep2000);
+
+    //=======================================
+    // Compute elapsed time in seconds w.r.t.
+    // the reference time (GpsTime0)
+    //---------------------------------------
+    elapsedTimeSeconds = timediff(gpsTime, gpsTime0);
+
+    //================================================================================
+    // Compute displacement according to:
+    // D_up= Ampl_cos_up * cos {mPhase + freq*(t-t0) + 1/2*accel*(t-t0)**2} +
+    //       Ampl_sin_up * sin {mPhase + freq*(t-t0) + 1/2*accel*(t-t0)**2}
+    // (for details see http://gemini.gsfc.nasa.gov/solve_root/help/harpos_format.txt)
+    //--------------------------------------------------------------------------------
+
+    //------------------------------
+    // Set the displacements to zero
+    //------------------------------
+    memset(xyzDisplacement, 0, 3* sizeof(double));
+    for (int i = 0; i < 3; i++)
+    {
+        uen[i] = 0;
+    }
+
+    //--------------------------------------------
+    // Perform the summation for every constituent
+    //--------------------------------------------
+    for (int con = 0; con < mNconst; con++)
+    {
+        // Compute the mPhase argument
+        phaseArgument = mPhase[con][0] + elapsedTimeSeconds * (mPhase[con][1] + 0.5 * elapsedTimeSeconds * mPhase[con][2]);
+
+        // Compute displacements
+        for (int comp = 0; comp < mNcomp; comp++)
+        {
+            uen[comp] += (mAmplitude[con][comp][cosine] / 1000) * cos(phaseArgument)
+                      +  (mAmplitude[con][comp][sine]   / 1000) * sin(phaseArgument);
+        }
+    }
+
+    double enuDisplacement[3] = { 0 };
+    enuDisplacement[0] = uen[1];
+    enuDisplacement[1] = uen[2];
+    enuDisplacement[2] = uen[0];
+
+    enu2ecef(stationGeod, enuDisplacement, xyzDisplacement);
+
+    return 1;
+}
+
+
+int tide_oload_trm(gtime_t gpsTime,const double *stationXYZ, double *xyzDisplacement)
+{
+    double stationGeod[3];
+    //==============================================================
+    // Compute the geodetic coordinates (decimal degrees and meters)
+    ecef2pos(stationXYZ, stationGeod);
+
+    stationGeod[0] = stationGeod[0] * R2D;
+    stationGeod[1] = stationGeod[1] * R2D;
+    if (stationGeod[1] < 0)
+    {
+        stationGeod[1] += 360.0;
+    }
+    //=======================
+    // Interpolate amplitudes
+    if (!InterpolateAmplitudes(stationGeod[0], stationGeod[1], 0))
+    {
+        return 0;
+    }
+
+    stationGeod[0] = stationGeod[0] * D2R;
+    stationGeod[1] = stationGeod[1] * D2R;
+    GetOtlDisplacement(gpsTime, stationGeod, xyzDisplacement);
+
+    return 1;
+}
+
 /* displacement by solid earth tide (ref [2] 7) ------------------------------*/
 static void tide_solid(const double *rsun, const double *rmoon,
                        const double *pos, const double *E, double gmst, int opt,
@@ -671,6 +902,383 @@ static void tide_pole(gtime_t tut, const double *pos, const double *erpv,
 *          see ref [4] 5.2.1, 5.2.2, 5.2.3
 *          ver.2.4.0 does not use ocean loading and pole tide corrections
 *-----------------------------------------------------------------------------*/
+
+/***************************************************************************/
+/**
+ * \brief Computes Greenwhich Apparent Sidereal time
+ *
+ * \param[in]   JulianDate        Julian date TDT (days)
+ *
+ * \param[in]   Obliquity         Obliquity of the ecliptic (radians)
+ *
+ * \param[in]   Nutation          Nutation in longitude (radians)
+ *
+ * \return      Greenwhich Apparent Sidereal time (seconds)
+ *
+ ***************************************************************************/
+double ComputeGreenwhichApparentSiderealTime(const double JulianDate,const double Obliquity,const double Nutation)
+{
+    // Compute the Julian date at 0h
+    double JD0 = floor(JulianDate);
+
+    // Compute seconds since 0h
+    double UTs = JulianDate - JD0;
+    if (UTs < 0.5)
+    {
+        JD0 -= 0.5;
+        UTs += 0.5;
+    }
+    else
+    {
+        JD0 += 0.5;
+        UTs -= 0.5;
+    }
+
+    UTs *= 86400.0;
+
+    // Compute the Julian centuries between the Julian date at 0h and J2000
+    const double dT = (JD0 - mJ2000) / 36525.0;
+
+    // Compute Greenwich mean sidereal time and mean solar days per sidereal day using the 1976 IAU formula
+    const double GMST = 24110.5481 + dT * (8640184.812866 + dT * (9.3104E-002 - 6.2E-006*dT));
+    const double MeanSolarDay = 1.0+ (8640184.812866 + dT * (0.186208 - 1.86E-005*dT))/ (86400.0*36525.0);
+
+    // Compute the equation of equinoxes (seconds)
+    const double EqEq = Nutation * cos(Obliquity) / 15.0;
+
+    // Greenwich apparent sidereal time at time T (sec)
+    double GAST = GMST + MeanSolarDay * UTs + EqEq;
+
+    // Modulo one day
+    GAST = GAST - 86400.0 * floor(GAST / 86400.0);
+
+    return GAST;
+}
+
+/***************************************************************************/
+/**
+ * \brief Computes the sun's apparent place position
+ *
+ * \param[in]   JulianDate  Julian date TDT (days)
+ *
+ * \param[in]   Obliquity   Obliquity of the ecliptic (radians)
+ *
+ * \param[in]   Nutation    Nutation in longitude (radians)
+ *
+ * \param[out]  APSPos      Sun's apparent place position
+ *
+ ***************************************************************************/
+void ComputeSunApparentPlace(const double JulianDate, const double Obliquity,const double Nutation, double APSPos[3])
+{
+    // Compute the numbers of days from J2000
+    const double Days = JulianDate - mJ2000;
+
+    // Compute mean longitude corrected for aberration
+    double L = fmod(280.466 + 0.9856474*Days, 360.0);
+    if (L < 0.0) L += 360.0;
+
+    // Compute mean anomaly
+    double G = fmod(357.528 + 0.9856003*Days, 360.0);
+    if (G < 0.0)
+    {
+        G += 360.0;
+    }
+
+    // Convert to radians
+    G = G*D2R;
+
+    // Compute ecliptic longitude (radians)
+    double Elon = (L + 1.915*sin(G) + 0.020*sin(2.0*G))*D2R;
+
+    // Correct for nutation in longitude
+    Elon += Nutation;
+
+    // Compute earth->sun range in meters
+    const double R = mAU * (1.00014 - 0.01671*cos(G) - 0.00014*cos(2.0*G));
+
+    // Compute apparent place coordinates
+    APSPos[0] = R * cos(Elon);
+    APSPos[1] = R * cos(Obliquity)*sin(Elon);
+    APSPos[2] = R * sin(Obliquity)*sin(Elon);
+}
+
+/***************************************************************************/
+/**
+ * \brief Computes the moon's apparent place position
+ * \param[in]   Time       Julian centuries since J2000 TDT (centuries)
+ * \param[in]   Obliquity  Obliquity of the ecliptic (radians)
+ * \param[in]   Nutation   Nutation in longitude (radians)
+ * \param[out]  APSPos     Moon's apparent place position
+ ***************************************************************************/
+void ComputeMoonApparentPlace(const double Time,const double Obliquity,const double  Nutation,double *APSPos)
+{
+    // Compute geocentric ecliptic longitude (deg)
+    double Elon = 218.3+ 481267.883*Time
+        + 6.29 * sin((134.9 + 477198.85 * Time)* D2R)
+        - 1.27 * sin((259.2 - 413335.38 * Time)* D2R)
+        + 0.66 * sin((235.7 + 890534.23 * Time)* D2R)
+        + 0.21 * sin((269.9 + 954397.70 * Time)* D2R)
+        - 0.19 * sin((357.5 + 35999.05  * Time)* D2R)
+        - 0.11 * sin((186.6 - 407332.20 * Time)* D2R);
+
+    Elon = fmod(Elon, 360.0);
+    if (Elon < 0.0)
+    {
+        Elon += 360.0;
+    }
+
+    // Convert to radians
+    Elon = (Elon)*D2R;
+
+    // Correct for nutation in longitude
+    Elon += Nutation;
+    const double SinL = sin(Elon);
+
+    // Compute geocentric ecliptic latitude (radians)
+    const double Elat = (5.13 * sin((93.3  + 483202.03 * Time)*D2R)+ 0.28 * sin((228.2 + 960400.87 * Time)*D2R)
+                       - 0.28 * sin((318.3 +   6003.18 * Time)*D2R)- 0.17 * sin((217.6 - 407332.20 * Time)*D2R))*D2R;
+    const double CosP = cos(Elat);
+    const double SinP = sin(Elat);
+    // Compute horizontal parallax (radians)
+    const double Hpar = (0.9508 + 0.0518 * cos((134.9 + 477198.85 * Time)*D2R)+ 0.0095 * cos((259.2 - 413335.38 * Time)*D2R)
+                       + 0.0078 * cos((235.7 + 890534.23 * Time)*D2R)+ 0.0028 * cos((269.9 + 954397.70 * Time)*D2R))*D2R;
+
+    // Compute earth -> moon range (m)
+    const double R = 6378140.0 / sin(Hpar);
+
+    // Compute apparent place coordinates (m)
+    const double CosE = cos(Obliquity);
+    const double SinE = sin(Obliquity);
+    APSPos[0] = R *  CosP*cos(Elon);
+    APSPos[1] = R * (CosE*CosP*SinL - SinE * SinP);
+    APSPos[2] = R * (SinE*CosP*SinL + CosE * SinP);
+}
+
+/***************************************************************************/
+/**
+ * \brief Computes frequency dependant corrections
+ *
+ * Corrections to the displacements computed in the time domain are need to
+ * take into account frequency dependant deviations of the Love and Shida
+ * numbers from their respective nominal values.
+ * Reference : "IERS standards", 1996, Chapter 7, pages 56-65
+ * \param[in]   JulianDate  Julian date TDT (days)
+ * \param[in]   SinPhi      Sine latitude
+ * \param[in]   CosPhi      Cosine latitude
+ * \param[in]   Lambda      Longitude (radians)
+ * \param[out]  NEUCorr     North, east and up displacement corrections
+ ***************************************************************************/
+void ComputeFrequencyDependantCorrections(const double JulianDate,const double SinPhi,const double CosPhi,const double Lambda,double   *NEUCorr)
+{
+    // Table 7.3a, page 65, IERS 1996 conventions
+    typedef struct
+    {
+        char s;
+        char h;
+        char p;
+        char n;
+        char ps;
+        double R;
+        double T;
+    } FreqTable_t;
+
+    static FreqTable_t Diurnal[] = { {-2,  0,  1,  0,  0,  -0.09E-3,  0.00E-3},
+                                    {-1,  0,  0, -1,  0,  -0.10E-3,  0.00E-3},
+                                    {-1,  0,  0,  0,  0,  -0.53E-3,  0.02E-3},
+                                    { 0,  0,  1,  0,  0,   0.06E-3,  0.00E-3},
+                                    { 1, -3,  0,  0,  1,  -0.05E-3,  0.00E-3},
+                                    { 1, -2,  0,  0,  0,  -1.23E-3,  0.07E-3},
+                                    { 1,  0,  0, -1,  0,  -0.22E-3,  0.01E-3},
+                                    { 1,  0,  0,  0,  0,  12.04E-3, -0.72E-3},
+                                    { 1,  0,  0,  1,  0,   1.74E-3, -0.10E-3},
+                                    { 1,  1,  0,  0, -1,  -0.50E-3,  0.03E-3},
+                                    { 1,  2,  0,  0,  0,  -0.11E-3,  0.01E-3} };
+
+    double T, T2, T3, T4, s, t, h, p, n, ps, F, SinF;
+    int i;
+    const double Day = JulianDate - floor(JulianDate) - 0.5;
+    double Hour = 24.0*(Day - (int)Day);
+    if (Hour > 24.0) Hour -= 24.0;
+    T = (JulianDate - 2451545.0) / 36525.0;
+    T2 = T * T;
+    T3 = T * T2;
+    T4 = T * T3;
+
+    s = 218.31664563 + 481267.88194*T - 0.0014663889*T2 + 0.00000185139*T3;
+
+    t = Hour * 15.0 + 280.4606184 + 36000.7700536*T + 0.00038793*T2 - 0.0000000258*T3 - s;
+
+    s += 1.396971278*T + 0.000308889*T2 + 0.000000021*T3 + 0.000000007*T4;
+
+    h = 280.46645 + 36000.7697489*T + 0.00030322222*T2 + 0.000000020*T3 - 0.00000000654*T4;
+
+    p = 83.35324312 + 4069.01363525*T - 0.01032172222*T2 - 0.0000124991*T3 + 0.00000005263*T4;
+
+    n = 234.95544499 + 1934.13626197*T - 0.00207561111*T2 - 0.00000213944*T3 + 0.00000001650*T4;
+
+    ps = 282.93734098 + 1.71945766667*T + 0.00045688889*T2 - 0.00000001778*T3 - 0.00000000334*T4;
+
+    s  = fmod(s, 360.0);
+    t  = fmod(t, 360.0);
+    h  = fmod(h, 360.0);
+    p  = fmod(p, 360.0);
+    n  = fmod(n, 360.0);
+    ps = fmod(ps,360.0);
+
+    NEUCorr[0] = NEUCorr[1] = NEUCorr[2] = 0.0;
+    for (i = 0; i < 11; i++)
+    {
+        F = (t + s * Diurnal[i].s + h * Diurnal[i].h + p * Diurnal[i].p + n * Diurnal[i].n + ps * Diurnal[i].ps)*D2R;
+        F += Lambda;
+        SinF = sin(F);
+        NEUCorr[0] += Diurnal[i].T * (CosPhi*CosPhi - SinPhi * SinPhi)*SinF;
+        NEUCorr[1] += Diurnal[i].T * SinPhi*cos(F);
+        NEUCorr[2] += Diurnal[i].R * 2.0*SinPhi*CosPhi*SinF;
+    }
+}
+
+extern void ComputeSolidEarthTideDisplacement(gtime_t tutc, const double *rr, double *dr)
+{
+    const double ep2000[] = { 2000,1,1,12,0,0 };
+
+    // Compute the Julian date in Terrestrial Dynamical Time (TDT)
+    double JulianDateTDT = timediff(tutc, epoch2time(ep2000)) / 86400.0 + mJ2000;
+
+    // Compute centuries since J2000 (TDT)
+    const double dT = timediff(tutc, epoch2time(ep2000)) / 86400.0 / 36525.0; //(JulianDateTDT - mJ2000) / 36525.0;
+
+    // Compute the obliquity of the ecliptic. "Satellite Geodesy", Seeber, page 15
+    const double Obliquity = mArcSec2Rad * (84381.448 - dT * (46.815 + dT * (0.00059 - 0.001813*dT)));
+
+    // Compute the longitude of the mean ascending node of the lunar orbit on the ecliptic, 
+    // measured from the mean equinox of date
+    const double dT2 = dT * dT;
+    double OM = mArcSec2Rad * (fmod(-6962890.539*dT + 450160.280,360.0) + (0.008*dT + 7.455)*dT2);
+
+    // Compute the mean longitude of the Moon minus the mean longitude of the Moon's node
+    double FF = mArcSec2Rad * (fmod(1739527263.137*dT + 335778.877,360.0) + (0.011*dT - 13.257)*dT2);
+
+    // Compute the mean elongation of the Moon from the Sun
+    double DD = mArcSec2Rad * (fmod(1602961601.328*dT + 1072261.307,360.0) + (0.019*dT - 6.891)*dT2);
+
+    // Compute the nutation in longitude
+    FF += FF;
+    DD += DD;
+    const double SinOM = sin(OM);
+    OM += OM;
+    const double SinFDO = sin(FF - DD + OM);
+    const double SinFO  = sin(FF - OM);
+    const double Nutation = mArcSec2Rad * (-17.1996*SinOM - 1.3187*SinFDO - 0.2274*SinFO);
+
+    // Compute Greenwich apparent sidereal time (radians)
+    const double GASTrad = mSec2Rad * ComputeGreenwhichApparentSiderealTime(JulianDateTDT,Obliquity,Nutation);
+
+    // Compute the Sun's APS position
+    double APSPos[3];
+    ComputeSunApparentPlace(JulianDateTDT, Obliquity, Nutation, APSPos);
+
+    // Compute the Sun's CTS position
+    const double SinGAST = sin(GASTrad);
+    const double CosGAST = cos(GASTrad);
+    double SunPos[3];
+    SunPos[0] =  CosGAST * APSPos[0] + SinGAST * APSPos[1];
+    SunPos[1] = -SinGAST * APSPos[0] + CosGAST * APSPos[1],
+    SunPos[2] = APSPos[2];
+
+    // Compute the Moon's APS position
+    ComputeMoonApparentPlace(dT, Obliquity, Nutation, APSPos);
+
+    // Compute the Moon's CTS position
+    double MoonPos[3];
+    MoonPos[0] =  CosGAST * APSPos[0] + SinGAST * APSPos[1];
+    MoonPos[1] = -SinGAST * APSPos[0] + CosGAST * APSPos[1],
+    MoonPos[2] = APSPos[2];
+
+    // Compute the length of the station vector
+    const double VectorLength = norm(rr,3);
+    const double SinPhi = rr[2]/ VectorLength;
+    const double CosPhi = sqrt(rr[0]* rr[0] + rr[1] * rr[1]) / VectorLength;
+    const double Lambda = atan2(rr[1], rr[0]);
+    const double SinLam = sin(Lambda);
+    const double CosLam = cos(Lambda);
+
+    double F2 = 1.5*SinPhi*SinPhi - 0.5;
+    const double H2 = mH20 - 0.0006 * F2;
+    const double L2 = mL20 + 0.0002 * F2;
+
+    // Compute 2nd degree effects
+    register int j, i;
+    const double StnPos[3] = { rr[0], rr[1], rr[2] };
+    double vdX[3] = { 0.0,0.0,0.0 };
+    double vX[3];
+    double Scalar, Scalar2, Scalar3, Range, Range3, X2, X3, P2, P3, F3;
+    for (i = 0; i < 2; i++)
+    {
+        // Compute the scalar product and range
+        Scalar = Range = 0.0;
+        for (j = 0; j < 3; j++)
+        {
+            if (i == 0)
+            {
+                vX[j] = SunPos[j];
+            }
+            else
+            {
+                vX[j] = MoonPos[j];
+            }
+            Range += vX[j] * vX[j];
+            Scalar += StnPos[j] * vX[j];
+        }
+
+        Range = sqrt(Range);
+        Range3 = Range * Range * Range;
+        Scalar /= (VectorLength*Range);
+        Scalar2 = Scalar * Scalar;
+        Scalar3 = Scalar * Scalar2;
+
+        // Compute the terms in the direction of the body
+        X2 = 3.0*L2*Scalar;
+        X2 /= Range;
+        X3 = 1.5*mL3*(5.0*Scalar2 - 1.0);
+        X3 /= Range;
+
+        // Compute the P2 term
+        P2 = 3.0*(0.5*H2 - L2)*Scalar2 - 0.5*H2;
+        P2 /= VectorLength;
+        P3 = 2.5*(mH3 - 3.0*mL3)*Scalar3 + 1.5*(mL3 - mH3)*Scalar;
+        P3 /= VectorLength;
+
+        // Compute factors
+        if (i == 0)
+        {
+            F2 = mSunMassRatio;
+        }
+        else
+        {
+            F2 = mMoonMassRatio;
+        }
+
+        F2 *= (mRE4 / Range3);
+        F3 = F2 * (mRE / Range);
+
+        // Compute the displacement
+        for (j = 0; j < 3; j++)
+        {
+            vdX[j] += F2 * (X2*vX[j] + P2 * StnPos[j]) + F3 * (X3*vX[j] + P3 * StnPos[j]);
+        }
+    }
+
+    // Compute the frequency dependant corrections
+    double vN[3];
+    ComputeFrequencyDependantCorrections(JulianDateTDT, SinPhi, CosPhi, Lambda, vN);
+
+    // Compute XYZ deformations
+    dr[0] = vdX[0] - CosLam * SinPhi*vN[0] - SinLam * vN[1] + CosLam * CosPhi*vN[2];
+    dr[1] = vdX[1] - SinLam * SinPhi*vN[0] + CosLam * vN[1] + SinLam * CosPhi*vN[2];
+    dr[2] = vdX[2] + CosPhi *        vN[0]                  + SinPhi *        vN[2];
+}
+
+
 extern void tidedisp(gtime_t tutc, const double *rr, int opt,const double *odisp, double *dr)
 {
     gtime_t tut;
@@ -683,9 +1291,6 @@ extern void tidedisp(gtime_t tutc, const double *rr, int opt,const double *odisp
     
     trace(3,"tidedisp: tutc=%s\n",time_str(tutc,0));
     
-    //if (erp) {
-    //    geterp(erp,utc2gpst(tutc),erpv);
-    //}
     tut=timeadd(tutc,erpv[2]);
     
     dr[0]=dr[1]=dr[2]=0.0;
@@ -702,17 +1307,6 @@ extern void tidedisp(gtime_t tutc, const double *rr, int opt,const double *odisp
         tide_solid(rs,rm,pos,E,gmst,opt,drt);
         for (i=0;i<3;i++) dr[i]+=drt[i];
     }
-    //if ((opt&2)&&odisp) { /* ocean tide loading */
-    //    tide_oload(tut,odisp,denu);
-    //    matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
-    //    for (i=0;i<3;i++) dr[i]+=drt[i];
-    //}
-    //if ((opt&4)&&erp) { /* pole tide */
-    //    tide_pole(tut,pos,erpv,denu);
-    //    matmul("TN",3,1,3,1.0,E,denu,0.0,drt);
-    //    for (i=0;i<3;i++) dr[i]+=drt[i];
-    //}
-    //printf("tidedisp: dr=%.3f %.3f %.3f\n",dr[0],dr[1],dr[2]);
 }
 
 /* nominal yaw-angle ---------------------------------------------------------*/
@@ -1017,7 +1611,7 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
 
    *phw = dDeltaPhi_cyc + dN_cyc;
 
-   if (*phw > 0.5)  *phw -= 1.0;
+   if (*phw >  0.5) *phw -= 1.0;
    if (*phw < -0.5) *phw += 1.0;
     //printf("phw: sat=%3i, phw=%.3f\n", sat, *phw);
     return 1;
