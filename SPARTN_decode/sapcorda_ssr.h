@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "spartn.h"
 #include <mutex>
+#include "rtcm.h"
 
 class sapcorda_ssr
 {

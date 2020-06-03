@@ -512,3 +512,284 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
     }
     return 1;
 }
+
+
+extern int get_match_epoch(obs_t *obs_ref, obs_t *obs_rov, vec_t *vec_ref, vec_t *vec_rov, int *iref, int *irov)
+{
+    /* get the matched satellite index from the base and rover recivers, and sort by the elevation */
+    int n = 0, i = 0, j = 0;
+    double elev[MAXOBS] = { 0.0 };
+    obsd_t *pObsRov = NULL;
+    obsd_t *pObsRef = NULL;
+    vec_t  *pVecRov = NULL;
+    vec_t  *pVecRef = NULL;
+    for (i = 0; i < (int)obs_rov->n; ++i)
+    {
+        pObsRov = obs_rov->data + i;
+        pVecRov = vec_rov + i;
+        if (norm(pVecRov->rs, 3) < 0.1) continue;
+        for (j = 0; j < (int)obs_ref->n; ++j)
+        {
+            pObsRef = obs_ref->data + j;
+            pVecRef = vec_ref + j;
+            if (norm(pVecRef->rs, 3) < 0.1) continue;
+            if (pObsRov->sat != pObsRef->sat) continue;
+            iref[n] = j;
+            irov[n] = i;
+            elev[n] = pVecRov->azel[1];
+            ++n;
+        }
+    }
+    for (i = 0; i < n; ++i)
+    {
+        for (j = i + 1; j < n; ++j)
+        {
+            if (elev[i] < elev[j])
+            {
+                int temp1 = iref[i];
+                int temp2 = irov[i];
+                double v = elev[i];
+                iref[i] = iref[j];
+                irov[i] = irov[j];
+                elev[i] = elev[j];
+                iref[j] = temp1;
+                irov[j] = temp2;
+                elev[j] = v;
+            }
+        }
+    }
+    return n;
+}
+
+
+int gen_rtcm_vrsdata(obs_t* obs, rtcm_t* rtcm, unsigned char* buff)
+{
+	/* write generated VRS data to file, in realtime system, will write to the user */
+
+	rtcm->time = obs->time;
+	int satNUM[4] = { 0 }, ns = 0, type[4] = { 1074, 1084 , 1094, 1124 };
+	int size_write = 0, j = 0;
+
+	for (j = 0; j < (int)obs->n; ++j)
+	{
+		int prn = 0;
+		int sys = satsys(obs->data[j].sat, &prn);
+		if (sys == _SYS_GPS_) {
+			++satNUM[0]; ++ns;
+		}
+		else if (sys == _SYS_GLO_) {
+			++satNUM[1]; ++ns;
+		}
+		else if (sys == _SYS_GAL_) {
+			++satNUM[2]; ++ns;
+		}
+		else if (sys == _SYS_BDS_) {
+			++satNUM[3]; ++ns;
+		}
+	}
+	if (ns > 0)
+	{
+		if (gen_rtcm3(rtcm, obs, 1005, 0) > 0)
+		{
+			if (buff)memcpy(buff + size_write, rtcm->buff, rtcm->nbyte);
+			size_write += rtcm->nbyte;
+		}
+
+		int lastSYS = 0;
+		for (j = 0; j < 2; ++j)
+		{
+			if (satNUM[j] > 0)
+				lastSYS = j;
+		}
+
+		for (j = 0; j < 2; ++j)
+		{
+			int syn = lastSYS == j ? 0 : 1;
+			if (gen_rtcm3(rtcm, obs, type[j], syn) > 0)
+			{
+				if (buff)memcpy(buff + size_write, rtcm->buff, rtcm->nbyte);
+				size_write += rtcm->nbyte;
+			}
+		}
+	}
+	return size_write;
+}
+
+int read_obs_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int stnID)
+{
+	int ret = 0;
+	int iter_ssr = 0;
+	size_t readCount = 0;
+	char buff = ' ';
+
+	while (!feof(fRTCM))
+	{
+		memset(&buff, 0, sizeof(buff));
+		readCount = fread(&buff, sizeof(char), 1, fRTCM);
+		if (readCount < 1)
+		{
+			/* file error or eof of file */
+			ret = -1;
+			break;
+		}
+
+		ret = input_rtcm3(buff, stnID, rtcm);
+		if (ret == 1)
+		{
+			break;
+		}
+	}
+	return ret;
+}
+
+int sread_eph_rtcm(unsigned char* buffer, uint32_t len, gnss_rtcm_t *rtcm, uint32_t ns_gps, uint32_t ns_g)
+{
+	int ret = 0;
+	int iter_ssr = 0;
+	char c = ' ';
+	uint32_t n;
+	for (n = 0; n < len; ++n)
+	{
+		c = buffer[n];
+		ret = input_rtcm3(c, 0, rtcm);
+		if (ret == 2 && rtcm->nav.n_gps >= ns_gps && rtcm->nav.ng >= ns_g)
+		{
+			//break;
+		}
+	}
+	return ret;
+}
+
+int fread_eph_rtcm(FILE *fRTCM, gnss_rtcm_t *rtcm, int ns_gps, int ns_g)
+{
+	int ret = 0;
+	int iter_ssr = 0;
+	size_t readCount = 0;
+	char buff = ' ';
+	while (!feof(fRTCM))
+	{
+		memset(&buff, 0, sizeof(buff));
+		readCount = fread(&buff, sizeof(char), 1, fRTCM);
+		if (readCount < 1)
+		{
+			/* file error or eof of file */
+			break;
+		}
+		ret = input_rtcm3(buff, 0, rtcm);
+		if (ret == 2 && rtcm->nav.n_gps >= ns_gps && rtcm->nav.ng >= ns_g)
+		{
+			break;
+		}
+	}
+	return ret;
+}
+
+int sread_ssr_sapcorda(unsigned char* buffer, uint32_t len, raw_spartn_t *spartn, spartn_t *spartn_out, uint32_t *ssr_num)
+{
+	int ret = 0;
+	uint8_t c = 0;
+	uint32_t n, i;
+
+	for (n = 0; n < len; ++n)
+	{
+		c = buffer[n];
+		int ret = input_spartn_data(spartn, spartn_out, c);
+		int  areaId = spartn_out->ssr_gad[0].areaId;
+		double t1 = spartn_out->ssr[0].t0[0];
+		double t2 = spartn_out->ssr[0].t0[1];
+		double t3 = spartn_out->ssr[0].t0[2];
+		double t4 = spartn_out->ssr[0].t0[3];
+		double t5 = spartn_out->ssr[0].t0[4];
+		double t6 = spartn_out->ssr[0].t0[5];
+
+		if (ret == 1 && t1*t2*t3*t4*t5*t6 > 0.0 && spartn_out->type == 0 && spartn_out->eos == 1)
+		{
+			//printf("\n");
+			for (i = 0; i < SSR_NUM; i++)
+			{
+				if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 0)
+					ssr_num[0]++;
+				else if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 1)
+					ssr_num[1]++;
+			}
+		}
+	}
+	return ret;
+}
+
+int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *spartn, spartn_t *spartn_out, uint32_t *ssr_num)
+{
+	int ret = 0;
+	char buff = ' ';
+	size_t currentCount = 0;
+	size_t frameSize = 0;
+	size_t frameCount = 0;
+	size_t readCount = 0;
+	int i;
+
+	while (!feof(fSSR))
+	{
+		memset(&buff, 0, sizeof(buff));
+		readCount = fread(&buff, sizeof(char), 1, fSSR);
+		if (readCount < 1)
+		{
+			/* file error or eof of file */
+			return -1;
+		}
+		currentCount += readCount;
+		frameSize += readCount;
+
+		int ret = input_spartn_data(spartn, spartn_out, buff);
+		int  areaId = spartn_out->ssr_gad[0].areaId;
+		double t1 = spartn_out->ssr[0].t0[0];
+		double t2 = spartn_out->ssr[0].t0[1];
+		double t3 = spartn_out->ssr[0].t0[2];
+		double t4 = spartn_out->ssr[0].t0[3];
+		double t5 = spartn_out->ssr[0].t0[4];
+		double t6 = spartn_out->ssr[0].t0[5];
+
+		if (ret == 1 && t1*t2*t3*t4*t5*t6 > 0.0 && spartn_out->type == 0 && spartn_out->eos == 1)
+		{
+			for (i = 0; i < SSR_NUM; i++)
+			{
+				if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 0)
+					ssr_num[0]++;
+				else if (spartn_out->ssr[i].prn != 0 && spartn_out->ssr[i].sys == 1)
+					ssr_num[1]++;
+			}
+
+			frameSize = 0;
+			frameCount++;
+			break;
+		}
+	}
+	return 0;
+}
+
+int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm)
+{
+	int ret = -1;
+	int iter_ssr = 0;
+	size_t currentCount = 0;
+	size_t readCount = 0;
+	char buff = ' ';
+	//int *numofread = 0;
+	while (!feof(fRTCM))
+	{
+		memset(&buff, 0, sizeof(buff));
+		readCount = fread(&buff, sizeof(char), 1, fRTCM);
+		if (readCount < 1)
+		{
+			/* file error or eof of file */
+			break;
+		}
+		currentCount += readCount;
+		ret = input_rtcm3(buff, 0, rtcm);
+
+		if (ret == 10 && rtcm->nav.ns > 30)
+		{
+			break;
+		}
+	}
+	return ret;
+}
