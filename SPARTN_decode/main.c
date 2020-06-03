@@ -75,6 +75,8 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 	sap_ssr_t *sap_ssr = &spartn_out.ssr;
 	gad_ssr_t *sap_gad = &spartn_out.ssr_gad;
 
+	printf("spartn_t = %zd\n", sizeof(spartn_t));
+
 	//printf("OCB_t = %zd\n",sizeof(OCB_t));
 	//printf("HPAC_t = %zd\n", sizeof(HPAC_t));
 	//printf("GAD_t = %zd\n", sizeof(GAD_t));

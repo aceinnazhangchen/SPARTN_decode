@@ -23,29 +23,30 @@ void close_lpac_table_file() {
 	close_table_file_ex(&lpac_table_file);
 }
 
-void log_lpac_to_table(raw_spartn_t* spartn, LPAC_t* lpac) {
-	uint32_t i,j;
-	uint32_t time = spartn->GNSS_time_type;
-	for (i = 0; i < lpac->header.SF071_LPAC_area_count; i++) {
-		LPAC_area_t* area = &lpac->areas[i];
-		uint32_t mask_len = area->SF075_LPAC_area_latitude_grid_node_count * area->SF076_LPAC_area_longitude_grid_node_count;
-		char VTEC_array[1024] = { 0 };
-		for (j = 0; j < mask_len; j++) {
-			char VTEC[8] = { 0 };
-			sprintf(VTEC, "%7.3f", area->VTEC[j].SF082_VTEC_residual);
-			if (j != 0) {
-				strcat(VTEC_array, ",");
-			}
-			strcat(VTEC_array, VTEC);
-		}
-		table_log_ex(lpac_table_file, "%9d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%7.3f,%s", time, area->SF072_LPAC_area_ID,
-			area->SF073_LPAC_area_reference_latitude, area->SF074_LPAC_area_reference_longitude,
-			area->SF075_LPAC_area_latitude_grid_node_count, area->SF076_LPAC_area_longitude_grid_node_count,
-			area->SF077_LPAC_area_latitude_grid_node_spacing, area->SF078_LPAC_area_longitude_grid_node_spacing,
-			area->SF080_Average_area_VTEC, VTEC_array);
-	}
-	table_log_ex(lpac_table_file, "");
-}
+//void log_lpac_to_table(raw_spartn_t* spartn, LPAC_t* lpac) {
+//	uint32_t i,j;
+//	uint32_t time = spartn->GNSS_time_type;
+//	for (i = 0; i < lpac->header.SF071_LPAC_area_count; i++) {
+//		LPAC_area_t* area = &lpac->areas[i];
+//		uint32_t mask_len = area->SF075_LPAC_area_latitude_grid_node_count * area->SF076_LPAC_area_longitude_grid_node_count;
+//		char VTEC_array[1024] = { 0 };
+//		for (j = 0; j < mask_len; j++) {
+//			char VTEC[8] = { 0 };
+//			sprintf(VTEC, "%7.3f", area->VTEC[j].SF082_VTEC_residual);
+//			if (j != 0) {
+//				strcat(VTEC_array, ",");
+//			}
+//			strcat(VTEC_array, VTEC);
+//		}
+//		table_log_ex(lpac_table_file, "%9d,%5d,%5d,%5d,%5d,%5d,%5d,%5d,%7.3f,%s", time, area->SF072_LPAC_area_ID,
+//			area->SF073_LPAC_area_reference_latitude, area->SF074_LPAC_area_reference_longitude,
+//			area->SF075_LPAC_area_latitude_grid_node_count, area->SF076_LPAC_area_longitude_grid_node_count,
+//			area->SF077_LPAC_area_latitude_grid_node_spacing, area->SF078_LPAC_area_longitude_grid_node_spacing,
+//			area->SF080_Average_area_VTEC, VTEC_array);
+//	}
+//	table_log_ex(lpac_table_file, "");
+//}
+
 //Table 6.25 LPAC grid node VTEC block
 void decode_LPAC_grid_node_VTEC_block(raw_spartn_t* spartn, LPAC_VTEC_t* VTEC, int tab) {
 	uint8_t* payload = spartn->payload;
@@ -101,19 +102,18 @@ extern int decode_LPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 	int i, tab = 2;
 	spartn->payload = spartn->buff + spartn->Payload_offset;
 	spartn->offset = 0;
-	LPAC_t lpac_o = { 0 };
-	LPAC_t* lpac = &lpac_o;
 	//Table 6.22 Header block
-	LPAC_header_t* header = &(lpac->header);
-	decode_LPAC_header_block(spartn, header, tab);
+	LPAC_header_t header = { 0 };
+	decode_LPAC_header_block(spartn, &header, tab);
 	//Table 6.23 LPAC area block (Repeated)
-	for (i = 0; i < header->SF071_LPAC_area_count; i++) {
-		LPAC_area_t* area = &(lpac->areas[i]);
-		decode_LPAC_area_block(spartn, area, tab+1);
+	LPAC_area_t area = { 0 };
+	for (i = 0; i < header.SF071_LPAC_area_count; i++) {
+		memset(&area, 0, sizeof(LPAC_area_t));
+		decode_LPAC_area_block(spartn, &area, tab+1);
 	}
-	transform_spartn_ssr(spartn_out, NULL, NULL, NULL, lpac);
+	//transform_spartn_ssr(spartn_out, NULL, NULL, NULL, lpac);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
-	slog(LOG_DEBUG, tab, "size of LPAC_t = %d ", sizeof(LPAC_t));
-	log_lpac_to_table(spartn, lpac);
+	//slog(LOG_DEBUG, tab, "size of LPAC_t = %d ", sizeof(LPAC_t));
+	//log_lpac_to_table(spartn, lpac);
 	return 1;
 }
