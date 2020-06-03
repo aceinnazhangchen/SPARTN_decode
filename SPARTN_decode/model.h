@@ -14,7 +14,7 @@ extern void blhdiff(double *blh, double *blh_ref, double *ned);
 
 extern void ecef2enu(const double *pos, const double *r, double *e);
 extern void xyz2enu_(const double *pos, double *E);
-
+extern void enu2ecef(const double *pos, const double *e, double *r);
 
 extern void covecef(const double *pos, const double *Q, double *P);
 extern void xyz2enu(const double *pos, double *E);

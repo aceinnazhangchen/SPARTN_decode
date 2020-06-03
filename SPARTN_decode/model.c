@@ -137,6 +137,20 @@ extern void ecef2enu(const double *pos, const double *r, double *e)
 	matmul("NN", 3, 1, 3, 1.0, E, r, 0.0, e);
 }
 
+/* transform local vector to ecef coordinate -----------------------------------
+* transform local tangental coordinate vector to ecef
+* args   : double *pos      I   geodetic position {lat,lon} (rad)
+*          double *e        I   vector in local tangental coordinate {e,n,u}
+*          double *r        O   vector in ecef coordinate {x,y,z}
+* return : none
+*-----------------------------------------------------------------------------*/
+extern void enu2ecef(const double *pos, const double *e, double *r)
+{
+    double E[9];
+    xyz2enu(pos, E);
+    matmul("TN", 3, 1, 3, 1.0, E, e, 0.0, r);
+}
+
 /* ecef to local coordinate transfromation matrix ------------------------------
 * compute ecef to local coordinate transfromation matrix
 * args   : double *pos      I   geodetic position {lat,lon} (rad)

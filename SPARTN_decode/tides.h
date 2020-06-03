@@ -21,6 +21,10 @@ extern int model_phw_sap(gtime_t time, int sat, const double *dSatPrecOrbitEcef_
 
 extern void tidedisp(gtime_t tutc, const double *rr, int opt, const double *odisp, double *dr);
 
+extern int tide_oload_trm(gtime_t gpsTime, const double *stationXYZ, double *uenDisplacement);
+
+extern void ComputeSolidEarthTideDisplacement(gtime_t tutc, const double *rr, double *dr);
+
 #ifdef __cplusplus
 }
 #endif
