@@ -48,14 +48,6 @@ int decode_spartn(raw_spartn_t* spartn, spartn_t* spartn_out) {
     case 3:
         return decode_LPAC_message(spartn, spartn_out);
         break;
-    case 4:
-        //if (spartn->Subtype == 0) {
-        //	decode_Dynamic_Key(spartn);
-        //}
-        //else if (spartn->Subtype == 1) {
-        //	decode_Group_Authentication(spartn);
-        //}
-        break;
     }
     return 0;
 }

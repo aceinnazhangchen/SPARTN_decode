@@ -238,14 +238,19 @@ extern "C" {
 
 /* do not define different MAX for post-process verion vs. real-time, this will hide the performance issue, and potential bug */
 /* increase MAXOBS, there are satellite in China now */
-#define MAXOBS 45
+#define MAXOBS 24
+#define GPS_ON
+#define GLO_ON
+//#define GAL_ON
+//#define BDS_ON
 
-//#define _PC_
+//#define RTCM_SSR
+//define _PC_
 #ifdef _PC_
 #define MAXEPH 100
 #define MAXEPH_R 24
 #else
-#define MAXEPH   55
+#define MAXEPH   30
 #define MAXEPH_R 24
 #endif
 #define MAXSSR 55
@@ -347,17 +352,19 @@ typedef struct {        /* navigation data type */
     eph_t eph[MAXEPH];         /* GPS/QZS/GAL ephemeris */
     geph_t geph[MAXEPH_R];     /* GLONASS ephemeris */  
     unsigned char ephsat;
+#ifdef RTCM_SSR
     ssr_t ssr[MAXSSR];        /* output of ssr corrections */
+#endif
 } nav_t;
 
-typedef struct {        /* observation data */
-    unsigned int n;         /* number of obervation data/allocated */
-    obsd_t data[MAXOBS];       /* observation data records */
+typedef struct {             /* observation data */
+    unsigned int n;          /* number of obervation data/allocated */
+    obsd_t data[MAXOBS];     /* observation data records */
     gtime_t time;
-    double pos[6];      /* station position (ecef) (m) */
-	double refpos[6]; /* reference pos & vel for comparison purpose */
-	unsigned char obsflag;        /* obs data complete flag (1:ok,0:not complete) */
-    unsigned int staid;          /* station id */
+    double pos[6];           /* station position (ecef) (m) */
+	double refpos[6];        /* reference pos & vel for comparison purpose */
+	unsigned char obsflag;   /* obs data complete flag (1:ok,0:not complete) */
+    unsigned int staid;      /* station id */
 } obs_t;
 
 typedef struct {        /* RTCM control struct type */

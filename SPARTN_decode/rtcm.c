@@ -2496,6 +2496,8 @@ static int decode_type1044(rtcm_t *rtcm, nav_t *nav)
 
     return 2;
 }
+
+#ifdef GAL_ON
 /* decode type 1045: galileo F/NAV satellite ephemerides (ref [15]) ----------*/
 static int decode_type1045(rtcm_t *rtcm, nav_t *nav)
 {
@@ -2692,6 +2694,9 @@ static int decode_type1046(rtcm_t *rtcm, nav_t *nav)
     
     return 2;
 }
+#endif
+
+#ifdef BDS_ON
 /* decode type 1042/63: beidou ephemerides -----------------------------------*/
 static int decode_type1042(rtcm_t *rtcm, nav_t *nav)
 {
@@ -2786,6 +2791,7 @@ static int decode_type1042(rtcm_t *rtcm, nav_t *nav)
 
     return 2;
 }
+#endif
 
 /* save obs data in msm message ----------------------------------------------*/
 static void save_msm_obs(rtcm_t *rtcm, obs_t *obs, int sys, msm_h_t *h, const double *r,
@@ -3412,7 +3418,8 @@ static int decode_type1230(rtcm_t *rtcm)
     trace(2, "rtcm3 1230: not supported message\n");
     return 0;
 }
-//#ifdef _USE_PPP_
+
+#ifdef RTCM_SSR
 /* decode ssr 1,4 message header ---------------------------------------------*/
 static int decode_ssr1_head(rtcm_t *rtcm, int sys, int *sync, int *iod,
                             double *udint, int *refd, int *hsize)
@@ -3835,77 +3842,6 @@ static int decode_ssr3(rtcm_t *rtcm, int sys, nav_t *nav, obs_t *obs)
             for (k = 0; k < NFREQ; k++)   nav->ssr[nav->ns].cbias[k] = ssr.cbias[k];
             ++nav->ns;
         }
-
-
-
-
-        //for (loc = 0; loc < nav->ns; ++loc)
-        //{
-        //    if (nav->ssr[loc].sat == sat)
-        //    {
-        //        nav->ssr[loc].t0[4] = ssr.t0[4];
-        //        nav->ssr[loc].udi[4] = ssr.udi[4];
-        //        nav->ssr[loc].iod[4] = ssr.iod[4];
-        //        for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
-        //        break;
-        //    }
-        //}
-
-        //if (loc < nav->ns)
-        //{
-        //    for (k = 0; k < obs->n; k++)
-        //    {
-        //        if (obs->data[k].sat == sat)
-        //        {
-        //            nav->ssr[loc].t0[4] = ssr.t0[4];
-        //            nav->ssr[loc].udi[4] = ssr.udi[4];
-        //            nav->ssr[loc].iod[4] = ssr.iod[4];
-        //            for (k = 0; k < NFREQ; k++)   nav->ssr[loc].cbias[k] = ssr.cbias[k];
-        //            break;
-        //        }
-        //    }
-        //}
-        //if (loc == nav->ns)
-        //{
-        //    if (loc < MAXSSR)
-        //    {
-        //        for (k = 0; k < obs->n; k++)
-        //        {
-        //            if (obs->data[k].sat == sat)
-        //            {
-        //                nav->ssr[nav->ns] = ssr;
-        //                ++nav->ns;
-        //                break;
-        //            }
-        //        }
-        //    }
-        //    else
-        //    {
-        //        for (j = 0; j < nav->ns; ++j)
-        //        {
-        //            int idx = -1;
-        //            for (k = 0; k < obs->n; k++)
-        //            {
-        //                if (obs->data[k].sat == nav->ssr[j].sat)
-        //                {
-        //                    idx = k;
-        //                    break;
-        //                }
-        //            }
-        //            if (idx == -1)
-        //            {
-        //                for (k = 0; k < obs->n; k++)
-        //                {
-        //                    if (obs->data[k].sat == sat)
-        //                    {
-        //                        nav->ssr[j] = ssr;
-        //                        return sync ? 0 : 10;
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
     }
     return sync ? 0 : 10;
 }
@@ -4015,66 +3951,6 @@ static int decode_ssr4(rtcm_t *rtcm, int sys, nav_t *nav, obs_t *obs)
         ssr.update = 1;
         nav->ssr[nav->ns] = ssr;
         nav->ns++;
-    //    for (loc = 0; loc < nav->ns; ++loc)
-    //    {
-    //        if (nav->ssr[loc].sat == sat)
-    //        {
-    //            break;
-    //        }
-    //    }
-
-    //    if (loc < nav->ns)
-    //    {
-    //        for (k = 0; k < obs->n; k++)
-    //        {
-    //            if (obs->data[k].sat == sat)
-    //            {
-    //                nav->ssr[loc] = ssr;
-    //                break;
-    //            }
-    //        }
-    //    }
-    //    else if (loc == nav->ns)
-    //    {
-    //        if (loc < MAXSSR)
-    //        {
-    //            for (k = 0; k < obs->n; k++)
-    //            {
-    //                if (obs->data[k].sat == sat)
-    //                {
-    //                    nav->ssr[nav->ns] = ssr;
-    //                    ++nav->ns;
-    //                    break;
-    //                }
-    //            }
-    //        }
-    //        else
-    //        {
-    //            for (j = 0; j < nav->ns; ++j)
-    //            {
-    //                int idx = -1;
-    //                for (k = 0; k < obs->n; k++)
-    //                {
-    //                    if (obs->data[k].sat == nav->ssr[j].sat)
-    //                    {
-    //                        idx = k;
-    //                        break;
-    //                    }
-    //                }
-    //                if (idx == -1)
-    //                {
-    //                    for (k = 0; k < obs->n; k++)
-    //                    {
-    //                        if (obs->data[k].sat == sat)
-    //                        {
-    //                            nav->ssr[j] = ssr;
-    //                            return sync ? 0 : 10;
-    //                        }
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
     }
     return sync ? 0 : 10;
 }
@@ -4420,7 +4296,7 @@ static int decode_ssr7(rtcm_t *rtcm, int sys, nav_t *nav)
     }
     return 20;
 }
-//#endif
+#endif
 
 extern void set_approximate_time(int year, int doy, rtcm_t *rtcm)
 {
@@ -4547,21 +4423,25 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1039:
         ret = decode_type1039(rtcm);
         break; /* not supported */
-    //case 1044:
-    //    ret = decode_type1044(rtcm, nav);
-    //    break;
-    //case 1045:
-    //    ret = decode_type1045(rtcm, nav);
-    //    break;
-    //case 1046:
-    //    ret = decode_type1046(rtcm, nav);
-    //    break;
-    //case 63:
-    //    ret = decode_type1042(rtcm, nav);
-    //    break; /* RTCM draft */
-    //case 1042:
-    //    ret = decode_type1042(rtcm, nav);
-    //    break;
+#ifdef GAL_ON
+    case 1044:
+        ret = decode_type1044(rtcm, nav);
+        break;
+    case 1045:
+        ret = decode_type1045(rtcm, nav);
+        break;
+    case 1046:
+        ret = decode_type1046(rtcm, nav);
+        break;
+#endif
+#ifdef BDS_ON
+    case 63:
+        ret = decode_type1042(rtcm, nav);
+        break; /* RTCM draft */
+    case 1042:
+        ret = decode_type1042(rtcm, nav);
+        break;
+#endif
     case 4001:
         ret = decode_type4001(rtcm);
         //osSemaphoreRelease(rtcm_sem);
@@ -4646,6 +4526,7 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1087:
         ret = decode_msm7(rtcm, obs, _SYS_GLO_);
         break;
+#ifdef GAL_ON
     case 1091:
         ret = decode_msm0(rtcm, obs, _SYS_GAL_);
         break; /* not supported */
@@ -4667,6 +4548,7 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1097:
         ret = decode_msm7(rtcm, obs, _SYS_GAL_);
         break;
+#endif
     case 1101:
         ret = decode_msm0(rtcm, obs, _SYS_SBS_);
         break; /* not supported */
@@ -4709,6 +4591,7 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1117:
         ret = decode_msm7(rtcm, obs, _SYS_QZS_);
         break;
+#ifdef BDS_ON
     case 1121:
         ret = decode_msm0(rtcm, obs, _SYS_BDS_);
         break; /* not supported */
@@ -4730,95 +4613,96 @@ int decode_rtcm3(rtcm_t *rtcm, obs_t *obs, nav_t *nav)
     case 1127:
         ret = decode_msm7(rtcm, obs, _SYS_BDS_);
         break;
+#endif
     case 1230:
         ret = decode_type1230(rtcm);
         break; /* not supported */
-//#ifdef _USE_PPP_
-    //case 1240:
-    //    ret = decode_ssr1(rtcm, _SYS_GAL_, nav, obs);
-    //    break;
-    //case 1241:
-    //    ret = decode_ssr2(rtcm, _SYS_GAL_, nav, obs);
-    //    break;
-    //case 1242:
-    //    ret = decode_ssr3(rtcm, _SYS_GAL_, nav, obs);
-    //    break;
-    //case 1243:
-    //    ret = decode_ssr4(rtcm, _SYS_GAL_, nav, obs);
-    //    break;
-    //case 1244:
-    //    ret = decode_ssr5(rtcm, _SYS_GAL_, nav);
-    //    break;
-    //case 1245:
-    //    ret = decode_ssr6(rtcm, _SYS_GAL_, nav);
-    //    break;
-    //case 1246:
-    //    ret = decode_ssr1(rtcm, _SYS_QZS_, nav, obs);
-    //    break;
-    //case 1247:
-    //    ret = decode_ssr2(rtcm, _SYS_QZS_, nav, obs);
-    //    break;
-    //case 1248:
-    //    ret = decode_ssr3(rtcm, _SYS_QZS_, nav, obs);
-    //    break;
-    //case 1249:
-    //    ret = decode_ssr4(rtcm, _SYS_QZS_, nav, obs);
-    //    break;
-    //case 1250:
-    //    ret = decode_ssr5(rtcm, _SYS_QZS_, nav);
-    //    break;
-    //case 1251:
-    //    ret = decode_ssr6(rtcm, _SYS_QZS_, nav);
-    //    break;
-    //case 1252:
-    //    ret = decode_ssr1(rtcm, _SYS_SBS_, nav, obs);
-    //    break;
-    //case 1253:
-    //    ret = decode_ssr2(rtcm, _SYS_SBS_, nav, obs);
-    //    break;
-    //case 1254:
-    //    ret = decode_ssr3(rtcm, _SYS_SBS_, nav, obs);
-    //    break;
-    //case 1255:
-    //    ret = decode_ssr4(rtcm, _SYS_SBS_, nav, obs);
-    //    break;
-    //case 1256:
-    //    ret = decode_ssr5(rtcm, _SYS_SBS_, nav);
-    //    break;
-    //case 1257:
-    //    ret = decode_ssr6(rtcm, _SYS_SBS_, nav);
-    //    break;
-    //case 1258:
-    //    ret = decode_ssr1(rtcm, _SYS_BDS_, nav, obs);
-    //    break;
-    //case 1259:
-    //    ret = decode_ssr2(rtcm, _SYS_BDS_, nav, obs);
-    //    break;
-    //case 1260:
-    //    ret = decode_ssr3(rtcm, _SYS_BDS_, nav, obs);
-    //    break;
-    //case 1261:
-    //    ret = decode_ssr4(rtcm, _SYS_BDS_, nav, obs);
-    //    break;
-    //case 1262:
-    //    ret = decode_ssr5(rtcm, _SYS_BDS_, nav);
-    //    break;
-    //case 1263:
-    //    ret = decode_ssr6(rtcm, _SYS_BDS_, nav);
-    //    break;
-    //case 11:
-    //    ret = decode_ssr7(rtcm, _SYS_GLO_, nav);
-    //    break; /* tentative */
-    //case 12:
-    //    ret = decode_ssr7(rtcm, _SYS_GAL_, nav);
-    //    break; /* tentative */
-    //case 13:
-    //    ret = decode_ssr7(rtcm, _SYS_QZS_, nav);
-    //    break; /* tentative */
-    //case 14:
-    //    ret = decode_ssr7(rtcm, _SYS_BDS_, nav);
-    //    break; /* tentative */
-//#endif
+#ifdef RTCM_SSR
+    case 1240:
+        ret = decode_ssr1(rtcm, _SYS_GAL_, nav, obs);
+        break;
+    case 1241:
+        ret = decode_ssr2(rtcm, _SYS_GAL_, nav, obs);
+        break;
+    case 1242:
+        ret = decode_ssr3(rtcm, _SYS_GAL_, nav, obs);
+        break;
+    case 1243:
+        ret = decode_ssr4(rtcm, _SYS_GAL_, nav, obs);
+        break;
+    case 1244:
+        ret = decode_ssr5(rtcm, _SYS_GAL_, nav);
+        break;
+    case 1245:
+        ret = decode_ssr6(rtcm, _SYS_GAL_, nav);
+        break;
+    case 1246:
+        ret = decode_ssr1(rtcm, _SYS_QZS_, nav, obs);
+        break;
+    case 1247:
+        ret = decode_ssr2(rtcm, _SYS_QZS_, nav, obs);
+        break;
+    case 1248:
+        ret = decode_ssr3(rtcm, _SYS_QZS_, nav, obs);
+        break;
+    case 1249:
+        ret = decode_ssr4(rtcm, _SYS_QZS_, nav, obs);
+        break;
+    case 1250:
+        ret = decode_ssr5(rtcm, _SYS_QZS_, nav);
+        break;
+    case 1251:
+        ret = decode_ssr6(rtcm, _SYS_QZS_, nav);
+        break;
+    case 1252:
+        ret = decode_ssr1(rtcm, _SYS_SBS_, nav, obs);
+        break;
+    case 1253:
+        ret = decode_ssr2(rtcm, _SYS_SBS_, nav, obs);
+        break;
+    case 1254:
+        ret = decode_ssr3(rtcm, _SYS_SBS_, nav, obs);
+        break;
+    case 1255:
+        ret = decode_ssr4(rtcm, _SYS_SBS_, nav, obs);
+        break;
+    case 1256:
+        ret = decode_ssr5(rtcm, _SYS_SBS_, nav);
+        break;
+    case 1257:
+        ret = decode_ssr6(rtcm, _SYS_SBS_, nav);
+        break;
+    case 1258:
+        ret = decode_ssr1(rtcm, _SYS_BDS_, nav, obs);
+        break;
+    case 1259:
+        ret = decode_ssr2(rtcm, _SYS_BDS_, nav, obs);
+        break;
+    case 1260:
+        ret = decode_ssr3(rtcm, _SYS_BDS_, nav, obs);
+        break;
+    case 1261:
+        ret = decode_ssr4(rtcm, _SYS_BDS_, nav, obs);
+        break;
+    case 1262:
+        ret = decode_ssr5(rtcm, _SYS_BDS_, nav);
+        break;
+    case 1263:
+        ret = decode_ssr6(rtcm, _SYS_BDS_, nav);
+        break;
+    case 11:
+        ret = decode_ssr7(rtcm, _SYS_GLO_, nav);
+        break; /* tentative */
+    case 12:
+        ret = decode_ssr7(rtcm, _SYS_GAL_, nav);
+        break; /* tentative */
+    case 13:
+        ret = decode_ssr7(rtcm, _SYS_QZS_, nav);
+        break; /* tentative */
+    case 14:
+        ret = decode_ssr7(rtcm, _SYS_BDS_, nav);
+        break; /* tentative */
+#endif
     default:
         ret = 0;
     }
@@ -4908,31 +4792,6 @@ extern int input_rtcm3_data(rtcm_t *rtcm, unsigned char data, obs_t *obs, nav_t 
         }
         return 0;
     }
-
-    // if (rtcm->key == '$')
-    // {
-    //     if (rtcm->nbyte == 10)
-    //     {
-    //         if (rtcm->buff[0] == '$')
-    //         {
-    //             if (strncmp(rtcm->buff, "$PSTMTS", 7) && strncmp(rtcm->buff, "$GPGGA", 6) && strncmp(rtcm->buff, "$PSTMTG", 7) && strncmp(rtcm->buff, "$PSTMEPHEM", 10))
-    //             {
-    //                 rtcm->key = 0;
-    //                 rtcm->nbyte = 0;
-    //                 return 0;
-    //             }
-    //         }
-    //     }
-
-    //     if (data == '$' && rtcm->nbyte > 10)
-    //     {
-    //         /* decode NMEA data format */
-    //         ret = decode_nmea(rtcm, obs, nav);
-    //         rtcm->nbyte = 0;
-    //     }
-    //     rtcm->buff[rtcm->nbyte++] = data;
-    //     return ret;
-    // }
 
     /* RTCM decorder */
     rtcm->buff[rtcm->nbyte++] = data;

@@ -491,6 +491,7 @@ static int ephpos(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
     return 1;
 }
 
+#ifdef RTCM_SSR
 /* satellite position and clock with ssr correction --------------------------*/
 static int satpos_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
                       int opt, double *rs, double *dts, double *var, int *svh)
@@ -595,7 +596,7 @@ static int satpos_ssr(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
 
     return 1;
 }
-
+#endif
 
 extern void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int ephopt)
 {
@@ -853,8 +854,10 @@ extern int satpos(gtime_t time, gtime_t teph, int sat, int ephopt,
     switch (ephopt) 
     {
         case EPHOPT_BRDC  : return ephpos        (time,teph,sat,nav,-1,rs,dts,var,svh);
+#ifdef RTCM_SSR
         case EPHOPT_SSRAPC: return satpos_ssr    (time,teph,sat,nav, 0,rs,dts,var,svh);
         case EPHOPT_SSRCOM: return satpos_ssr    (time,teph,sat,nav, 1,rs,dts,var,svh);
+#endif
         case EPHOPT_SSRSAP: return satpos_sap_ssr(time, teph, sat, nav,ssr, rs, dts, var, svh);
     }
     *svh=-1;

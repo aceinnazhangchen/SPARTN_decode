@@ -11,8 +11,8 @@ extern "C"
 #endif
 
 #define SPARTN_PREAMB 0x73 
-#define RAP_NUM       48
-#define SSR_NUM       30
+#define RAP_NUM       42
+#define SSR_NUM       24
 #define SAT_MAX		  32
 #define HPAC_MAX_ARAE 10
 #define DAY_SECOND    86400
