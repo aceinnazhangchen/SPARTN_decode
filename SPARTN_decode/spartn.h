@@ -15,7 +15,9 @@ extern "C"
 #define SSR_NUM       24
 #define SAT_MAX		  32
 #define HPAC_MAX_ARAE 10
-#define DAY_SECOND    86400
+
+#define SSR_SAP 
+#define DAY_SECONDS 86400
 //#define USE_Tropo_Iono_2
 
 //=============================
@@ -88,11 +90,11 @@ typedef struct {
 	};
 } OCB_Satellite_t;
 
-typedef struct {
-	OCB_header_t header;
-	OCB_Satellite_t satellite[SAT_MAX];
-	uint8_t satellite_num;
-}OCB_t;
+//typedef struct {
+//	OCB_header_t header;
+//	OCB_Satellite_t satellite[SAT_MAX];
+//	uint8_t satellite_num;
+//}OCB_t;
 //=============================
 // SM 1-0/1-1  HPAC messages 
 //=============================
@@ -184,10 +186,10 @@ typedef struct {
 	HPAC_ionosphere_t ionosphere;
 }HPAC_atmosphere_t;
 
-typedef struct {
-	HPAC_header_t header;
-	HPAC_atmosphere_t atmosphere[HPAC_MAX_ARAE];
-}HPAC_t;
+//typedef struct {
+//	HPAC_header_t header;
+//	HPAC_atmosphere_t atmosphere[HPAC_MAX_ARAE];
+//}HPAC_t;
 //=============================
 // SM 2-0 GAD messages 
 //=============================
@@ -208,10 +210,10 @@ typedef struct {
 	uint8_t SF030_Area_count;
 }GAD_header_t;
 
-typedef struct {
-	GAD_header_t header;
-	GAD_area_t areas[32];
-}GAD_t;
+//typedef struct {
+//	GAD_header_t header;
+//	GAD_area_t areas[32];
+//}GAD_t;
 //=============================
 // SM 3-0 LPAC messages 
 //=============================
@@ -244,10 +246,10 @@ typedef struct {
 	uint8_t SF071_LPAC_area_count;
 }LPAC_header_t;
 
-typedef struct {
-	LPAC_header_t header;
-	LPAC_area_t areas[4];
-}LPAC_t;
+//typedef struct {
+//	LPAC_header_t header;
+//	LPAC_area_t areas[4];
+//}LPAC_t;
 
 typedef struct {
 	int     areaId;
@@ -354,11 +356,8 @@ int sread_ssr_sapcorda(unsigned char * buffer, uint32_t len, raw_spartn_t * spar
 int fread_ssr_sapcorda(FILE *fSSR, raw_spartn_t *raw_spartn, spartn_t *spartn, uint32_t *ssr_num);
 int read_ssr_from_file(FILE *fRTCM, gnss_rtcm_t *rtcm);
 
-void transform_spartn_ssr(spartn_t* spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac);
+//void transform_spartn_ssr(spartn_t* spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac);
 void expanded_full_time(raw_spartn_t* raw_spartn);
-
-#define SSR_SAP 
-#define DAY_SECONDS 86400
 
 #ifdef __cplusplus
 }

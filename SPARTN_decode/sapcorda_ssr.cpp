@@ -45,7 +45,7 @@ sapcorda_ssr::sapcorda_ssr()
 	memset(&m_spartn, 0, sizeof(m_spartn));
 	memset(&m_spartn_out, 0, sizeof(m_spartn_out));
 	memset(&m_obs_vrs, 0, sizeof(m_obs_vrs));
-	m_fLOG = fopen("obsfromssr.log", "w");
+	m_fLOG = NULL;// fopen("obsfromssr.log", "w");
 	if (m_fLOG) {
 		printf("create log success ! \n");
 	}

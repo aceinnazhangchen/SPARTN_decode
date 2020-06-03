@@ -3,7 +3,6 @@
 #include "bits.h"
 #define Leap_Sec 18.0
 #define GLO_GPS_TD  10800
-#define DAY_SECONDS 86400
 
 void decode_GPS_satellite_mask(uint8_t* data, int *pos, uint8_t* satellite_mask, uint8_t *satellite_mask_len) {
 	int i,offset = *pos;
@@ -195,62 +194,62 @@ void ssr_append_gad_sat(spartn_t* spartn, GAD_area_t* area) {
 	ssr_gad->spa_lat = area->SF036_Area_latitude_grid_node_spacing;
 }
 
-void ocb_to_ssr(spartn_t* spartn, OCB_t* ocb) {
-	if (!spartn) return;
-	if (!ocb) return;
-	int i = 0;
-	OCB_Satellite_t* sat_obc = NULL;
-	for (i = 0; i < ocb->satellite_num && i < SAT_MAX; ++i) {
-		sat_obc = &ocb->satellite[i];
-		ssr_append_ocb_sat(spartn, sat_obc);
-	}
-	spartn->eos = ocb->header.SF010_EOS;
-}
+//void ocb_to_ssr(spartn_t* spartn, OCB_t* ocb) {
+//	if (!spartn) return;
+//	if (!ocb) return;
+//	int i = 0;
+//	OCB_Satellite_t* sat_obc = NULL;
+//	for (i = 0; i < ocb->satellite_num && i < SAT_MAX; ++i) {
+//		sat_obc = &ocb->satellite[i];
+//		ssr_append_ocb_sat(spartn, sat_obc);
+//	}
+//	spartn->eos = ocb->header.SF010_EOS;
+//}
 
-void hpac_to_ssr(spartn_t* spartn, HPAC_t* hpac) {
-	if (!spartn) return;
-	if (!hpac) return;
-	int i = 0;
-	sap_ssr_t* ssr = NULL;
-	for (i = 0; i < hpac->header.SF030_Area_count; ++i) {
-		//ssr = &spartn->ssr[j];
-		ssr_append_hpac_sat(spartn, &hpac->atmosphere[i]);
-	}
-	//ssr->rap_num += hpac->header.SF030_Area_count;
-}
+//void hpac_to_ssr(spartn_t* spartn, HPAC_t* hpac) {
+//	if (!spartn) return;
+//	if (!hpac) return;
+//	int i = 0;
+//	sap_ssr_t* ssr = NULL;
+//	for (i = 0; i < hpac->header.SF030_Area_count; ++i) {
+//		//ssr = &spartn->ssr[j];
+//		ssr_append_hpac_sat(spartn, &hpac->atmosphere[i]);
+//	}
+//	//ssr->rap_num += hpac->header.SF030_Area_count;
+//}
 
-void gad_to_ssr(spartn_t* spartn, GAD_t* gad) {
-	if (!spartn) return;
-	if (!gad) return;
+//void gad_to_ssr(spartn_t* spartn, GAD_t* gad) {
+//	if (!spartn) return;
+//	if (!gad) return;
+//
+//	int i = 0;
+//	gad_ssr_t* ssr_gad = NULL;
+//	for (i = 0; i < gad->header.SF030_Area_count; ++i) {
+//		ssr_append_gad_sat(spartn, &gad->areas[i]);
+//	}
+//}
 
-	int i = 0;
-	gad_ssr_t* ssr_gad = NULL;
-	for (i = 0; i < gad->header.SF030_Area_count; ++i) {
-		ssr_append_gad_sat(spartn, &gad->areas[i]);
-	}
-}
-
-void transform_spartn_ssr(spartn_t* spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac)
-{
-	if (!spartn) return;
-    int i = 0, j = 0, n = 0, m=0;
-
-    if (spartn->type == 0) {
-		ocb_to_ssr(spartn, ocb);
-    }
-    else if (spartn->type == 1) {
-		hpac_to_ssr(spartn, hpac);
-    }
-    else if (spartn->type == 2) {
-		gad_to_ssr(spartn, gad);
-    }
-}
+//void transform_spartn_ssr(spartn_t* spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac)
+//{
+//	if (!spartn) return;
+//    int i = 0, j = 0, n = 0, m=0;
+//
+//    if (spartn->type == 0) {
+//		ocb_to_ssr(spartn, ocb);
+//    }
+//    else if (spartn->type == 1) {
+//		hpac_to_ssr(spartn, hpac);
+//    }
+//    else if (spartn->type == 2) {
+//		gad_to_ssr(spartn, gad);
+//    }
+//}
 
 void expanded_full_time(raw_spartn_t* raw_spartn) {
     //to full time
     if (raw_spartn->Subtype == 0) {
     	if (raw_spartn->Time_tag_type) {
-            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % (DAY_SECOND);
+            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % (DAY_SECONDS);
     	}
     	else {
     		//if (GPS_DAYS > 0) {
@@ -261,7 +260,7 @@ void expanded_full_time(raw_spartn_t* raw_spartn) {
     }
     else if (raw_spartn->Subtype == 1) {//
     	if (raw_spartn->Time_tag_type) {
-            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % (DAY_SECOND);
+            raw_spartn->GNSS_time_type = raw_spartn->GNSS_time_type % (DAY_SECONDS);
     	}
     	else {
     		//if (GLONASS_DAYS > 0) {
