@@ -174,7 +174,7 @@ void ssr_append_hpac_sat(spartn_t* spartn, HPAC_atmosphere_t* atmosphere) {
 }
 
 void ssr_append_gad_sat(spartn_t* spartn, GAD_area_t* area) {
-	int j = 0, n = 0, m = 0;
+	int j = 0;
 	gad_ssr_t* ssr_gad = NULL;
 	for (j = 0; j < RAP_NUM; ++j) {
 		ssr_gad = &spartn->ssr_gad[j];
@@ -192,6 +192,34 @@ void ssr_append_gad_sat(spartn_t* spartn, GAD_area_t* area) {
 	ssr_gad->nc_lat = area->SF034_Area_latitude_grid_node_count;
 	ssr_gad->spa_lon = area->SF037_Area_longitude_grid_node_spacing;
 	ssr_gad->spa_lat = area->SF036_Area_latitude_grid_node_spacing;
+}
+
+void ssr_append_lpac_area(spartn_t * spartn, LPAC_area_t * area)
+{
+	int j = 0;
+	vtec_t* vtec = NULL;
+	for (j = 0; j < AREA_NUM; ++j) {
+		vtec = &spartn->vtec[j];
+		if (vtec->areaId == area->SF072_LPAC_area_ID) {
+			break;
+		}
+		if (vtec->areaId == 0) {
+			break;
+		}
+	}
+
+	vtec->areaId = area->SF072_LPAC_area_ID;
+	vtec->rap_lon = area->SF073_LPAC_area_reference_latitude;
+	vtec->rap_lat = area->SF074_LPAC_area_reference_longitude;
+	vtec->nc_lon = area->SF075_LPAC_area_latitude_grid_node_count;
+	vtec->nc_lat = area->SF076_LPAC_area_longitude_grid_node_count;
+	vtec->spa_lon = area->SF077_LPAC_area_latitude_grid_node_spacing;
+	vtec->spa_lat = area->SF078_LPAC_area_longitude_grid_node_spacing;
+	vtec->avg_vtec = area->SF080_Average_area_VTEC;
+	
+	for (j = 0; j < VTEC_NUM; ++j) {
+		vtec->residual[j] = area->VTEC[j].SF082_VTEC_residual;
+	}
 }
 
 //void ocb_to_ssr(spartn_t* spartn, OCB_t* ocb) {

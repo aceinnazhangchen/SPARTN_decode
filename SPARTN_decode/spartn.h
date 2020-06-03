@@ -11,6 +11,8 @@ extern "C"
 #define SPARTN_PREAMB 0x73 
 #define RAP_NUM       42
 #define SSR_NUM       24
+#define AREA_NUM      4
+#define VTEC_NUM	  64
 #define SAT_MAX		  32
 #define HPAC_MAX_ARAE 10
 
@@ -296,6 +298,7 @@ typedef struct {
 	uint8_t  spa_lon;
 	uint8_t  spa_lat;
 	double avg_vtec;
+	double residual[VTEC_NUM];
 } vtec_t;
 
 typedef struct {
@@ -307,7 +310,7 @@ typedef struct {
 	uint8_t ssr_offset;
     uint8_t eos;
 	sap_ssr_t ssr[SSR_NUM];
-	vtec_t vtec[4];
+	vtec_t vtec[AREA_NUM];
 } spartn_t;
 
 typedef struct {
@@ -356,6 +359,7 @@ void close_lpac_table_file();
 void ssr_append_ocb_sat(spartn_t* spartn, OCB_Satellite_t* sat_obc);
 void ssr_append_hpac_sat(spartn_t * spartn, HPAC_atmosphere_t * atmosphere);
 void ssr_append_gad_sat(spartn_t * spartn, GAD_area_t * area);
+void ssr_append_lpac_area(spartn_t * spartn, LPAC_area_t * area);
 
 //void transform_spartn_ssr(spartn_t* spartn, OCB_t* ocb, HPAC_t* hpac, GAD_t* gad, LPAC_t* lpac);
 void expanded_full_time(raw_spartn_t* raw_spartn);

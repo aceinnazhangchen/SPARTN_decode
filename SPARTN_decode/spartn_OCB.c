@@ -17,7 +17,7 @@ void close_ocb_table_file() {
 	close_table_file_ex(&ocb_table_file);
 }
 
-void log_ocb_table_header(uint32_t Subtype,OCB_header_t* header) {
+void log_ocb_table_header(uint32_t Subtype, OCB_header_t* header) {
 	if (Subtype == 0) {
 		table_log_ex(ocb_table_file, "%d%8s, %3s,%3s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%9s", header->SF010_EOS, "Time", "Sat", "Iod", "Ad", "Cd", "Rd", "Clk", "L1C", "L2W", "L2L", "C1C", "C2W", "C2L");
 	}
@@ -26,19 +26,19 @@ void log_ocb_table_header(uint32_t Subtype,OCB_header_t* header) {
 	}
 }
 
-void log_ocb_sat_to_table(uint32_t Subtype, OCB_Satellite_t* ocb_sat) {
-	//if (Subtype == 0) {
-	//	table_log_ex(ocb_table_file, "%9d, G%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb_sat->PRN_ID, ocb_sat->orbit.SF018_SF019_IODE,
-	//		ocb_sat->orbit.SF020_along, ocb_sat->orbit.SF020_cross, ocb_sat->orbit.SF020_radial, ocb_sat->clock.SF020_Clock_correction,
-	//		ocb_sat->GPS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb_sat->GPS_bias.Phase_bias[1].SF020_Phase_bias_correction, ocb_sat->GPS_bias.Phase_bias[2].SF020_Phase_bias_correction,
-	//		ocb_sat->GPS_bias.SF029_Code_bias_correction[0], ocb_sat->GPS_bias.SF029_Code_bias_correction[1], ocb_sat->GPS_bias.SF029_Code_bias_correction[2]);
-	//}
-	//else {
-	//	table_log_ex(ocb_table_file, "%9d, R%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb_sat->PRN_ID, ocb_sat->orbit.SF018_SF019_IODE,
-	//		ocb_sat->orbit.SF020_along, ocb_sat->orbit.SF020_cross, ocb_sat->orbit.SF020_radial, ocb_sat->clock.SF020_Clock_correction,
-	//		ocb_sat->GLONASS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb_sat->GLONASS_bias.Phase_bias[1].SF020_Phase_bias_correction, "",
-	//		ocb_sat->GLONASS_bias.SF029_Code_bias_correction[0], ocb_sat->GLONASS_bias.SF029_Code_bias_correction[1], "");
-	//}
+void log_ocb_sat_to_table(uint32_t Subtype, uint32_t time, OCB_Satellite_t* ocb_sat) {
+	if (Subtype == 0) {
+		table_log_ex(ocb_table_file, "%9d, G%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f", time, ocb_sat->PRN_ID, ocb_sat->orbit.SF018_SF019_IODE,
+			ocb_sat->orbit.SF020_along, ocb_sat->orbit.SF020_cross, ocb_sat->orbit.SF020_radial, ocb_sat->clock.SF020_Clock_correction,
+			ocb_sat->GPS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb_sat->GPS_bias.Phase_bias[1].SF020_Phase_bias_correction, ocb_sat->GPS_bias.Phase_bias[2].SF020_Phase_bias_correction,
+			ocb_sat->GPS_bias.SF029_Code_bias_correction[0], ocb_sat->GPS_bias.SF029_Code_bias_correction[1], ocb_sat->GPS_bias.SF029_Code_bias_correction[2]);
+	}
+	else {
+		table_log_ex(ocb_table_file, "%9d, R%02d,%3d,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9.3f,%9s %9.3f,%9.3f %9s", time, ocb_sat->PRN_ID, ocb_sat->orbit.SF018_SF019_IODE,
+			ocb_sat->orbit.SF020_along, ocb_sat->orbit.SF020_cross, ocb_sat->orbit.SF020_radial, ocb_sat->clock.SF020_Clock_correction,
+			ocb_sat->GLONASS_bias.Phase_bias[0].SF020_Phase_bias_correction, ocb_sat->GLONASS_bias.Phase_bias[1].SF020_Phase_bias_correction, "",
+			ocb_sat->GLONASS_bias.SF029_Code_bias_correction[0], ocb_sat->GLONASS_bias.SF029_Code_bias_correction[1], "");
+	}
 }
 /*
 void log_ocb_to_table(raw_spartn_t* spartn, OCB_t* ocb) {
@@ -224,7 +224,7 @@ int decode_OCB_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 			satellite.PRN_ID = i + 1;
 			decode_satellite_block(spartn, &satellite, ocb_header.SF008_Yaw_present_flag, tab + 1);
 			ssr_append_ocb_sat(spartn_out, &satellite);
-			log_ocb_sat_to_table(spartn->Subtype, &satellite);
+			log_ocb_sat_to_table(spartn->Subtype, spartn->GNSS_time_type, &satellite);
 		}
 	}
 	spartn_out->eos = ocb_header.SF010_EOS;

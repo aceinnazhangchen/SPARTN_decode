@@ -110,6 +110,7 @@ extern int decode_LPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 	for (i = 0; i < header.SF071_LPAC_area_count; i++) {
 		memset(&area, 0, sizeof(LPAC_area_t));
 		decode_LPAC_area_block(spartn, &area, tab+1);
+		ssr_append_lpac_area(spartn_out, &area);
 	}
 	//transform_spartn_ssr(spartn_out, NULL, NULL, NULL, lpac);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
