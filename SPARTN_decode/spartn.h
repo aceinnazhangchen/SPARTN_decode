@@ -296,8 +296,8 @@ typedef struct {
 	int16_t  rap_lat;
 	uint8_t  nc_lon;
 	uint8_t  nc_lat;
-	uint8_t  spa_lon;
-	uint8_t  spa_lat;
+	double  spa_lon;
+	double  spa_lat;
 	double avg_vtec;
 	double residual[VTEC_NUM];
 } vtec_t;

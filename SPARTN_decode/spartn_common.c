@@ -194,6 +194,17 @@ void ssr_append_gad_sat(spartn_t* spartn, GAD_area_t* area) {
 	ssr_gad->spa_lat = area->SF036_Area_latitude_grid_node_spacing;
 }
 
+double get_node_spacing_deg(int index) {
+	double value = 0.0;
+	switch (index) {
+	case 0:value = 2.5; break;
+	case 1:value = 5.0; break;
+	case 2:value = 10.0; break;
+	case 3:value = 15.0; break;
+	}
+	return value;
+}
+
 void ssr_append_lpac_area(spartn_t * spartn, LPAC_area_t * area)
 {
 	int j = 0;
@@ -213,8 +224,8 @@ void ssr_append_lpac_area(spartn_t * spartn, LPAC_area_t * area)
 	vtec->rap_lat = area->SF074_LPAC_area_reference_longitude;
 	vtec->nc_lon = area->SF075_LPAC_area_latitude_grid_node_count;
 	vtec->nc_lat = area->SF076_LPAC_area_longitude_grid_node_count;
-	vtec->spa_lon = area->SF077_LPAC_area_latitude_grid_node_spacing;
-	vtec->spa_lat = area->SF078_LPAC_area_longitude_grid_node_spacing;
+	vtec->spa_lon = get_node_spacing_deg(area->SF077_LPAC_area_latitude_grid_node_spacing);
+	vtec->spa_lat = get_node_spacing_deg(area->SF078_LPAC_area_longitude_grid_node_spacing);
 	vtec->avg_vtec = area->SF080_Average_area_VTEC;
 	
 	for (j = 0; j < VTEC_NUM; ++j) {
