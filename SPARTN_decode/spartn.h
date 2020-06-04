@@ -290,6 +290,7 @@ typedef struct {                            /* SSR correction type */
 } sap_cor_dif;
 
 typedef struct {
+	double time;
 	uint8_t  areaId;
 	int16_t  rap_lon;
 	int16_t  rap_lat;

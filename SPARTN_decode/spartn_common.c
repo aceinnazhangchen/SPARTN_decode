@@ -207,7 +207,7 @@ void ssr_append_lpac_area(spartn_t * spartn, LPAC_area_t * area)
 			break;
 		}
 	}
-
+	vtec->time = spartn->time;
 	vtec->areaId = area->SF072_LPAC_area_ID;
 	vtec->rap_lon = area->SF073_LPAC_area_reference_latitude;
 	vtec->rap_lat = area->SF074_LPAC_area_reference_longitude;
