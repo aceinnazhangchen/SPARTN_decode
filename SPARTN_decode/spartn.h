@@ -312,6 +312,7 @@ typedef struct {
     uint8_t eos;
 	sap_ssr_t ssr[SSR_NUM];
 	vtec_t vtec[AREA_NUM];
+	uint16_t is_height;			//Ionosphere shell height
 } spartn_t;
 
 typedef struct {
