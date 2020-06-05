@@ -13,14 +13,16 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #endif
 
-#define SC2RAD   3.1415926535898   /* semi-circle to radian (IS-GPS) */
-#define AU       149597870691.0    /* 1 AU (m) */
-#define AS2R     (D2R / 3600.0)    /* arc sec to radian */
-#define MU_GPS   3.9860050E14     /* gravitational constant         ref [1] */
-#define MU_GLO   3.9860044E14     /* gravitational constant         ref [2] */
-#define MU_GAL   3.986004418E14   /* earth gravitational constant   ref [7] */
-#define MU_BDS   3.986004418E14   /* earth gravitational constant   ref [9] */
-
+#define SC2RAD         3.1415926535898   /* semi-circle to radian (IS-GPS) */
+#define AU             149597870691.0    /* 1 AU (m) */
+#define AS2R           (D2R / 3600.0)    /* arc sec to radian */
+#define MU_GPS         3.9860050E14     /* gravitational constant         ref [1] */
+#define MU_GLO         3.9860044E14     /* gravitational constant         ref [2] */
+#define MU_GAL         3.986004418E14   /* earth gravitational constant   ref [7] */
+#define MU_BDS         3.986004418E14   /* earth gravitational constant   ref [9] */
+#define RE             6378.0           /* km */
+#define HION           450.0            /* km */
+#define VTEC_INTP_MOD  4
 /*****************************************************************************
 * From GLAB
 * Name        : gravitationalDelayCorrection
@@ -262,17 +264,6 @@ void high_prcision_slant_atm_polynomial(gtime_t time, double *blh, int sat, sap_
     trop  = tcoef[0] + tcoef[1] * (blh[0] * R2D - acp_lat) + tcoef[2] * (blh[1] * R2D - acp_lon);
     //printf("atmcor: sat=%3i,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", sat, Ip[i], Tp[i], wdi[i], gpt_bl[i * 2], blh[0] * R2D, gpt_bl[i * 2 + 1], blh[1] * R2D, acp_lat, acp_lon);
 
-    //for (i = 0; i < 4; i++)
-    //{
-    //    wdi[i] = 0.25;
-    //    Ip[i] = icoef[0] + icoef[1] * (gpt_bl[i * 2]- acp_lat) + icoef[2] * (gpt_bl[i * 2 + 1]- acp_lon);
-    //    Tp[i] = tcoef[0] + tcoef[1] * (gpt_bl[i * 2]- acp_lat) + tcoef[2] * (gpt_bl[i * 2 + 1]- acp_lon);
-    //    //Ip[i] = icoef[0] + icoef[1] * (gpt_bl[i * 2] - blh[0]*R2D) + icoef[2] * (gpt_bl[i * 2 + 1] - blh[1]*R2D);
-    //    //Tp[i] = tcoef[0] + tcoef[1] * (gpt_bl[i * 2] - blh[0]*R2D) + tcoef[2] * (gpt_bl[i * 2 + 1] - blh[1]*R2D);
-    //    *stec += wdi[i] * Ip[i];
-    //    Tw    += wdi[i] * Tp[i];
-    //    printf("atmcor: sat=%3i,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", sat, Ip[i], Tp[i], wdi[i], gpt_bl[i * 2], blh[0] * R2D, gpt_bl[i * 2 + 1], blh[1] * R2D, acp_lat, acp_lon);
-    //}
     Th = ssr[satidx].ave_htd;
     m_h=tropmapf(time, blh, azel, &m_w);
     //*stro = m_h*Th + m_w * Tw;
@@ -280,7 +271,166 @@ void high_prcision_slant_atm_polynomial(gtime_t time, double *blh, int sat, sap_
     //printf("atmcor: sat=%3i,%.3f,%.3f,%.3f,%.3f\n", sat, *stec, *stro, Th, Tw);
 }
 
-void compute_high_prcision_atm_corr(int sat, obs_t *obs_vrs, sap_ssr_t *ssr, gad_ssr_t *gad, double *azel, double maskElev, double *stec, double *stro)
+
+/* ionospheric pierce point position -------------------------------------------
+* compute ionospheric pierce point (ipp) position and slant factor
+* args   : double *pos      I   receiver position {lat,lon,h} (rad,m)
+*          double *azel     I   azimuth/elevation angle {az,el} (rad)
+*          double *posp     O   pierce point position {lat,lon,h} (rad,m)
+* return : slant factor
+* notes  : see ref [2], only valid on the earth surface
+*          fixing bug on ref [2] A.4.4.10.1 A-22,23
+*-----------------------------------------------------------------------------*/
+double ionppp(const double *pos, const double *azel, double *posp)
+{
+    double cosaz, rp, sinap, tanap, ap;
+    /* */
+    rp = (RE + pos[2] / 1.0e3) / (RE + HION)*cos(azel[1]);
+    /*phi: central angle of the pierce point [radians]*/
+    ap = PI / 2.0 - azel[1] - asin(rp);
+
+    /* sine of  phi_pp  */
+    sinap = sin(ap);
+    tanap = tan(ap);
+
+    /*cosine of azimuth */
+    cosaz = cos(azel[0]);
+    /*phi w.r.t pierce point [radians]*/
+    posp[0] = asin(sin(pos[0])*cos(ap) + cos(pos[0])*sinap*cosaz);
+
+    //if ((pos[0] > 0.0*D2R &&  tanap * cosaz > tan(PI / 2.0 - pos[0])) ||
+    //    (pos[0] < 0.0*D2R && -tanap * cosaz > tan(PI / 2.0 + pos[0])))
+    //{
+    //    posp[1] = pos[1] + PI - asin(sinap*sin(azel[0]) / cos(posp[0]));
+    //}
+    //else
+    //{
+        posp[1] = pos[1] + asin(sinap*sin(azel[0]) / cos(posp[0]));
+ /*   }*/
+    //return 1.0 / sin(azel[1] + posp[0]);
+    return 1.0 / sqrt(1.0 - rp * rp);
+}
+
+
+
+void grid_weighting(double xpp, double ypp, int mod, double *weight)
+{
+    if (mod == 3)
+    {
+        weight[0] = ypp;
+        weight[1] = 1 - xpp - ypp;
+        weight[2] = xpp;
+    }
+    else if (mod == 4)
+    {
+        weight[0] = xpp * (1 - ypp);
+        weight[1] = (1 - xpp)*(1 - ypp);
+        weight[2] = xpp*ypp;
+        weight[3] = (1 - xpp)*ypp;
+    }
+}
+
+
+void compute_low_precision_ion_corr(int sat, obs_t *obs_vrs, vtec_t *vtec, double *azel, double *stec, FILE *fLOG)
+{
+    int i,j,k,sys, prn;
+    double blh[3] = { 0 };
+    double posp[3] = { 0 };
+    double w[4] = { 0 };
+    double xpp = 0.0, ypp = 0.0;
+    ecef2pos(obs_vrs->pos, blh);
+    int loc = -1;
+    double mf=ionppp(blh, azel, posp);
+    double lat_pp = posp[0] * R2D;
+    double lon_pp = posp[1] * R2D;
+    double grid_pt[8] = { 0 };
+    int    grid_id[8] = { 0 };
+    double dist_deg = 0.0, min_dist=1.0e4;
+    sys = satsys(sat, &prn);
+    if (fLOG) fprintf(fLOG, "ionpp:%c%02d,%6.2f,%6.2f,%6.2f,%6.2f\n", sys2char(sys), prn, lat_pp, lon_pp, blh[0] * R2D, blh[1] * R2D);
+    for (i = 0; i < AREA_NUM; i++)
+    {
+        if (lat_pp < vtec[i].rap_lat) continue;
+        if (lon_pp < vtec[i].rap_lon) continue;
+        dist_deg = sqrt(SQR(lat_pp - vtec[i].rap_lat) + SQR(lon_pp - vtec[i].rap_lon));
+        if (dist_deg < min_dist)
+        {
+            min_dist = dist_deg;
+            loc = i;
+        }
+    }
+    if (loc == -1) return;
+    double pt[2] = { 0 };
+    int  pidx[2] = { 0 };
+    min_dist = 1.0e4;
+    for (i = 0; i < vtec[i].nc_lat; i++)
+    {
+        for (j = 0; j < vtec[i].nc_lon; j++)
+        {
+            dist_deg= sqrt(SQR(lat_pp - (double)vtec[loc].rap_lat - i * vtec[loc].spa_lat)+ SQR(lon_pp - (double)vtec[loc].rap_lon - j * vtec[loc].spa_lon));
+            if (dist_deg < min_dist)
+            {
+                min_dist = dist_deg;
+                pidx[0] = i;
+                pidx[1] = j;
+                pt[0]   = vtec[loc].rap_lat + i * vtec[loc].spa_lat;
+                pt[1]   = vtec[loc].rap_lon + j * vtec[loc].spa_lon;
+            }
+        }
+    }
+    if (pt[0] > lat_pp)
+    {
+        if (pt[1] > lon_pp)
+        {
+            grid_id[0] = pidx[0];     grid_id[1] = pidx[1] - 1;
+            grid_id[2] = pidx[0];     grid_id[3] = pidx[1];
+            grid_id[4] = pidx[0] - 1; grid_id[5] = pidx[1] - 1;
+            grid_id[6] = pidx[0] - 1; grid_id[7] = pidx[1];
+        }
+        else
+        {
+            grid_id[0] = pidx[0];      grid_id[1] = pidx[1];
+            grid_id[2] = pidx[0];      grid_id[3] = pidx[1] + 1;
+            grid_id[4] = pidx[0] - 1;  grid_id[5] = pidx[1];
+            grid_id[6] = pidx[0] - 1;  grid_id[7] = pidx[1] + 1;
+        }
+    }
+    else
+    {
+        if (pt[1] > lon_pp)
+        {
+            grid_id[0] = pidx[0] + 1;   grid_id[1] = pidx[1] - 1;
+            grid_id[2] = pidx[0] + 1;   grid_id[3] = pidx[1];
+            grid_id[4] = pidx[0];       grid_id[5] = pidx[1] - 1;
+            grid_id[6] = pidx[0];       grid_id[7] = pidx[1];
+        }
+        else
+        {
+            grid_id[0] = pidx[0] + 1;   grid_id[1] = pidx[1];
+            grid_id[2] = pidx[0] + 1;   grid_id[3] = pidx[1] + 1;
+            grid_id[4] = pidx[0];       grid_id[5] = pidx[1];
+            grid_id[6] = pidx[0];       grid_id[7] = pidx[1] + 1;
+        }
+    }
+    for (i = 0; i < 4; i++)
+    {
+        grid_pt[i * 2]     = vtec[loc].rap_lat + grid_id[i * 2]   * vtec[loc].spa_lat;
+        grid_pt[i * 2 + 1] = vtec[loc].rap_lon + grid_id[i * 2+1] * vtec[loc].spa_lon;
+    }
+    xpp = (lon_pp - grid_pt[5]) / vtec[loc].spa_lon;
+    ypp = (lat_pp - grid_pt[4]) / vtec[loc].spa_lat;
+    grid_weighting(xpp, ypp, VTEC_INTP_MOD, w);
+    double vtec_grid = 0.0, wgt_grid = 0.0;
+    for (i = 0; i < VTEC_INTP_MOD; i++)
+    {
+        vtec_grid += w[i] * (vtec[loc].residual[grid_id[i * 2] * vtec[loc].nc_lon + grid_id[i * 2 + 1]] + vtec[loc].avg_vtec);
+        wgt_grid  += w[i];
+        if (fLOG) fprintf(fLOG, "grid:%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n", grid_pt[i * 2], grid_pt[i * 2 + 1], vtec[loc].avg_vtec, vtec[loc].residual[grid_id[i * 2] * vtec[loc].nc_lon + grid_id[i * 2 + 1]], w[i]);
+    } 
+    *stec = mf*(vtec_grid/ wgt_grid);
+}
+
+void compute_high_precision_atm_corr(int sat, obs_t *obs_vrs, sap_ssr_t *ssr, gad_ssr_t *gad, double *azel, double maskElev, double *stec, double *stro)
 {
     int i,j;
     double blh[3] = { 0 };
@@ -311,6 +461,7 @@ void compute_high_prcision_atm_corr(int sat, obs_t *obs_vrs, sap_ssr_t *ssr, gad
     //printf("%6.2f, %6.2f\n",arp_lat + gpt_idx[3] * gad[gpt_idx[0]].spa_lat, arp_lon + gpt_idx[4] * gad[gpt_idx[0]].spa_lon);
     
     high_prcision_slant_atm_polynomial(obs_vrs->time, blh, sat, ssr, gad, azel, gpt_idx, stec, stro);
+
 }
 
 
@@ -320,7 +471,7 @@ extern int gen_vobs_from_ssr(obs_t *obs_rov, sap_ssr_t *ssr, gad_ssr_t* gad, obs
     double cbias[2] = { 0.0 }, pbias[2] = { 0.0 }, dr[3] = { 0.0 };
     double P[2] = { 0.0 }, L[2] = { 0.0 };
     double rs[6] = { 0.0 }, rr[6] = { 0.0 }, phw = 0.0, phw2 = 0.0;
-    double stec = 0.0, strop = 0.0;
+    double stec = 0.0, stec_lpap, strop = 0.0;
     double tecu2m1 = 0.0, tecu2m2 = 0.0;
     double w1 = 0.0, w2 = 0.0;
     double grav_delay = 0.0;
@@ -349,10 +500,10 @@ extern int gen_vobs_from_ssr(obs_t *obs_rov, sap_ssr_t *ssr, gad_ssr_t* gad, obs
        /* gravitational delay correction */
        grav_delay = ShapiroCorrection(sys, obs_vrs->pos, vec_vrs[i].rs);
 
-       /* slant tropospheric and ionospheric delay from HPAC*/
-       compute_high_prcision_atm_corr(obs_vrs->data[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
        tecu2m1 = tecu2meter(obs_vrs->data[i].sat, 0);
        tecu2m2 = tecu2meter(obs_vrs->data[i].sat, 1);
+       /* slant tropospheric and ionospheric delay from HPAC*/
+       //compute_high_prcision_atm_corr(obs_vrs->data[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
 
        if (stec == 0.0 || strop == 0.0)  continue;
 
@@ -395,14 +546,14 @@ extern int gen_vobs_from_ssr(obs_t *obs_rov, sap_ssr_t *ssr, gad_ssr_t* gad, obs
     return 1;
 }
 
-extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ssr_t* gad, obs_t *obs_vrs, vec_t *vec_vrs, double maskElev, FILE *fLOG)
+extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ssr_t* gad, vtec_t *vtec, obs_t *obs_vrs, vec_t *vec_vrs, double maskElev, FILE *fLOG)
 {
     obs_t obs_osr = { 0.0 };
     int i, j, prn;
     double cbias[2] = { 0.0 }, pbias[2] = { 0.0 }, dr[3] = { 0.0 }, dotl[3] = { 0.0 };
     double P[2] = { 0.0 }, L[2] = { 0.0 };
     double rs[6] = { 0.0 }, rr[6] = { 0.0 }, phw = 0.0, phw2 = 0.0;
-    double stec = 0.0, strop = 0.0;
+    double stec = 0.0, stec_lpap = 0.0, ion1_lpac = 0.0, ion2_lpac = 0.0, strop = 0.0;
     double tecu2m1 = 0.0, tecu2m2 = 0.0;
     double w1 = 0.0, w2 = 0.0;
     double grav_delay = 0.0;
@@ -419,14 +570,11 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
     obs_vrs->time = time;
     int obstime = obs_vrs->time.time;
     obstime = fmod(obstime, 43200);
-
     int nobs = 0;
     obs_vrs->obsflag = 1;
-
     for (i = 0; i < obs_vrs->n; i++)
     {
         if (norm(vec_vrs[i].rs, 3) < 0.01)     continue;
-
         if (vec_vrs[i].azel[1]*R2D < maskElev) continue;
 
         int sys = satsys(vec_vrs[i].sat, &prn);
@@ -439,17 +587,21 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         vec_vrs[i].r -= soltide;
 
         /* phase windup model */
-        //model_phw(obs_rov->time, obs_rov->data[i].sat, NULL, 2, vec_vrs[i].rs, obs_vrs->pos, &phw);
-        //model_phw_bnc(time, vec_vrs[i].sat, NULL, 2, vec_vrs[i].rs, obs_vrs->pos, &phw);
         model_phw_sap(time, vec_vrs[i].sat, vec_vrs[i].rs, vec_vrs[i].rs + 3, obs_vrs->pos, &vec_vrs[i].phw);
 
         /* gravitational delay correction */
         grav_delay = ShapiroCorrection(sys, obs_vrs->pos, vec_vrs[i].rs);
 
-        /* slant tropospheric and ionospheric delay from HPAC*/
-        compute_high_prcision_atm_corr(vec_vrs[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
         tecu2m1 = tecu2meter(vec_vrs[i].sat, 0);
         tecu2m2 = tecu2meter(vec_vrs[i].sat, 1);
+        /* slant tropospheric and ionospheric delay from HPAC*/
+        compute_high_precision_atm_corr(vec_vrs[i].sat, obs_vrs, ssr, gad, &vec_vrs[i].azel, maskElev, &stec, &strop);
+        /* slant ionospheric delay from LPAC*/
+        compute_low_precision_ion_corr(vec_vrs[i].sat, obs_vrs, vtec, &vec_vrs[i].azel, &stec_lpap, fLOG);
+
+        ion1_lpac = tecu2m1 * stec_lpap;
+        ion2_lpac = tecu2m2 * stec_lpap;
+        
         if (stec == 0.0 || strop == 0.0)  continue;
 
         int loc = -1;
@@ -468,10 +620,8 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         cbias[1] = ssr[loc].cbias[1];
         pbias[0] = ssr[loc].pbias[0];
         pbias[1] = ssr[loc].pbias[1];
-
         w1 = satwavelen(obs_vrs->data[i].sat, 0);
         w2 = satwavelen(obs_vrs->data[i].sat, 1);
-
         obs_vrs->data[i].time    = time;
         obs_vrs->data[i].LLI[0]  = 0;
         obs_vrs->data[i].LLI[1]  = 0;
@@ -488,9 +638,9 @@ extern int gen_obs_from_ssr(gtime_t time, double* rcvpos, sap_ssr_t *ssr, gad_ss
         int dt2 = obstime - ssr[loc].t0[1];
         int dt3 = obstime - ssr[loc].t0[2];
         int dt4 = obstime - ssr[loc].t0[4];
-        //printf("obs:%6i,%3i,%3i,%3i,%3i,%3i,%13.3f,%11.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n",
+        //if (fLOG)fprintf(fLOG,"obs:%6i,%3i,%3i,%3i,%3i,%3i,%13.3f,%11.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f,%6.3f\n",
         //    obstime, dt1, dt2, dt3, dt4, obs_vrs->data[i].sat, vec_vrs[i].r, vec_vrs[i].dts[0]*CLIGHT, soltide, vec_vrs[i].phw*w1, vec_vrs[i].phw*w2, grav_delay, strop,
-        //    tecu2m1 * stec, tecu2m2 * stec, cbias[0], cbias[1], pbias[0], pbias[1]);
+        //    tecu2m1 * stec, tecu2m2 * stec, ion1_lpac, ion2_lpac, cbias[0], cbias[1], pbias[0], pbias[1]);
     }
 
     double ep[6];

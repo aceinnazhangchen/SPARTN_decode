@@ -253,10 +253,8 @@ extern "C" {
 #define MAXEPH   30
 #define MAXEPH_R 24
 #endif
-#define MAXSSR 55
-
+#define MAXSSR 24
 #define MAXANT 2
-
 #define SQR(x)   ((x)*(x))
 
 #define MAXEXFILE   1024                /* max number of expanded files */

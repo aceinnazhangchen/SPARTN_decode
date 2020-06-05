@@ -72,8 +72,9 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 	memset(&spartn, 0, sizeof(spartn));
 	spartn_t spartn_out;
 	memset(&spartn_out, 0, sizeof(spartn_t));
-	sap_ssr_t *sap_ssr = &spartn_out.ssr;
-	gad_ssr_t *sap_gad = &spartn_out.ssr_gad;
+	sap_ssr_t *sap_ssr  = &spartn_out.ssr;
+	gad_ssr_t *sap_gad  = &spartn_out.ssr_gad;
+    vtec_t    *sap_vtec = &spartn_out.vtec;
 
 	printf("spartn_t = %zd\n", sizeof(spartn_t));
 
@@ -81,7 +82,6 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 	//printf("HPAC_t = %zd\n", sizeof(HPAC_t));
 	//printf("GAD_t = %zd\n", sizeof(GAD_t));
 	//printf("LPAC_t = %zd\n", sizeof(LPAC_t));
-
 	//printf("OCB_Satellite_t = %zd\n",sizeof(OCB_Satellite_t));
 	//printf("HPAC_atmosphere_t = %zd\n", sizeof(HPAC_atmosphere_t));
 	//printf("GAD_area_t = %zd\n", sizeof(GAD_area_t));
@@ -160,6 +160,19 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 				sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
 		}
 
+        for (i = 0; i < AREA_NUM; i++)
+        {
+            if (sap_vtec[i].time == 0.0) continue;
+            fprintf(fLOG, "vtec:%6.0f,%3d,%4i,%4i,%3i,%3i,%6.2f,%6.2f,%6.2f\n",
+                sap_vtec[i].time, sap_vtec[i].areaId, sap_vtec[i].rap_lat, sap_vtec[i].rap_lon,  sap_vtec[i].nc_lat, sap_vtec[i].nc_lon,
+                sap_vtec[i].spa_lat, sap_vtec[i].spa_lon, sap_vtec[i].avg_vtec);
+            int nres = sap_vtec[i].nc_lon*sap_vtec[i].nc_lat;
+            fprintf(fLOG, "vtec:");
+            for (j = 0; j < nres; j++)
+                fprintf(fLOG, j<nres-1 ? "%6.2f,": "%6.2f", sap_vtec[i].residual[j]);
+            fprintf(fLOG, "\n");
+        }
+
 		while (1)
 		{
 			int time = teph.time;
@@ -172,25 +185,21 @@ int gga_ssr2osr_main(FILE *fSSR, FILE *fEPH, FILE *fRTCM, FILE *fLOG, double *ep
 		memset(&obs_vrs, 0, sizeof(obs_vrs));
 
 		nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
-
 		obs_vrs.time = teph;
 		obs_vrs.n = nsat;
-
 		memcpy(obs_vrs.pos, rovpos, 3 * sizeof(double));
 		for (i = 0; i < nsat; i++)
 		{
 			obs_vrs.data[i].sat = vec_vrs[i].sat;
 		}
 		nsat = compute_vector_data(&obs_vrs, vec_vrs);
-
 		if (nsat == 0)  continue;
 
-		int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, &obs_vrs, vec_vrs, 0.0, fLOG);
+        int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, sap_vtec, &obs_vrs, vec_vrs, 0.0, fLOG);
 
 		rtcm_t out_rtcm = { 0 };
 		unsigned char buffer[1200] = { 0 };
 		int len = gen_rtcm_vrsdata(&obs_vrs, &out_rtcm, buffer);
-
 		fwrite(buffer, 1, len, fRTCM);
 
 		//obs_t obs_test = { 0 };
