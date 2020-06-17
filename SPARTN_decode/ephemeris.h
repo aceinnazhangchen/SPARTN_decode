@@ -44,6 +44,8 @@ int satposs_sap_rcv(gtime_t teph, double *rcvpos, vec_t *vec, nav_t *nav, sap_ss
 
 int compute_vector_data(obs_t* obs, vec_t* vec);
 
+int nav_ssr_unpair(nav_t *nav, sap_ssr_t *ssr, int *unpair_sat, int *unpair_nav, int *unpair_ssr);
+
 /*--------------------------------------------------------------------*/
 #ifdef __cplusplus
 }

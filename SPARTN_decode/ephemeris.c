@@ -657,6 +657,41 @@ extern void satposs_sap(obs_t *obs, vec_t *vec, nav_t *nav, sap_ssr_t *ssr, int 
     }
 }
 
+extern int nav_ssr_unpair(nav_t *nav, sap_ssr_t *ssr, int *unpair_sat, int *unpair_nav, int *unpair_ssr)
+{
+    int n = 0, i, j;
+    for (i = 0; i < SSR_NUM; ++i)
+    {
+        if (ssr[i].sys == 0)
+        {
+            for (j = 0; j < nav->n; j++)
+            {
+                if (ssr[i].sat == nav->eph[j].sat && ssr[i].iod[0] != nav->eph[j].iode)
+                {
+                    unpair_nav[n] = j;
+                    unpair_ssr[n] = i;
+                    unpair_sat[n] = nav->eph[j].sat;
+                    ++n;
+                }
+            }
+        }
+        else
+        {
+            for (j = 0; j < nav->ng; j++)
+            {
+                if (ssr[i].sat == nav->geph[j].sat  && ssr[i].iod[0] != nav->geph[j].iode)
+                {
+                    unpair_nav[n] = j+100;
+                    unpair_ssr[n] = i;
+                    unpair_sat[n] = nav->geph[j].sat;
+                    ++n;
+                }
+            }
+        }
+    }
+    return n;
+}
+
 static int match_nav_ssr(nav_t *nav, sap_ssr_t *ssr, int *inav, int *issr)
 {
     int n=0, i, j;

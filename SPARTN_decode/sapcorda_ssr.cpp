@@ -187,13 +187,19 @@ void input_gga(char * buffer, unsigned char*out_buffer, uint32_t *len)
 unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_buffer, uint32_t *len)
 {
 	vec_t vec_vrs[MAXOBS] = { 0 };
+    int unpair_sat[MAXOBS] = { 0 };
+    int unpair_nav[MAXOBS] = { 0 };
+    int unpair_ssr[MAXOBS] = { 0 };
 	gtime_t teph = timeget();
 	teph = timeadd(teph, 18.0);
 	sap_ssr_t *sap_ssr = m_spartn_out.ssr;
 	gad_ssr_t *sap_gad = m_spartn_out.ssr_gad;
     vtec_t    *sap_vtec =m_spartn_out.vtec;
 	nav_t *nav = &m_rtcm.nav;
-	uint32_t i, j, nsat;
+    nav_t temp_nav = { 0 };
+    memcpy(&temp_nav, nav, sizeof(nav_t));
+    uint32_t i, j, nsat;
+    int prn, sat, sys;
 	uint8_t ssr_offset = m_spartn_out.ssr_offset;
 	uint32_t ns = 0;
 	for (i = 0; i < ssr_offset; i++)
@@ -234,20 +240,39 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 			sap_ssr[i].cbias[0], sap_ssr[i].cbias[1], sap_ssr[i].cbias[2], sap_ssr[i].pbias[0], sap_ssr[i].pbias[1], sap_ssr[i].pbias[2]);
 	}
 	if (m_fLOG) fprintf(m_fLOG,"\n");
-	//while (1)
-	//{
-	//	teph = timeadd(teph, 5.0);
-	//	int time = teph.time;
-	//	double time1 = fmod((double)time, DAY_SECONDS);
-	//	if (time1 - sap_ssr[0].t0[1] < 20.0 && time1>sap_ssr[0].t0[1])
-	//		break;
-	//}
+
 	obs_t* obs_vrs = &sapcorda_ssr::getInstance()->m_obs_vrs;
 	memset(obs_vrs, 0, sizeof(obs_t));
 
-	
-	nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
-	// check if nav is same as last_nav
+	//nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
+
+    int unpair_num = nav_ssr_unpair(nav, sap_ssr, unpair_sat, unpair_nav, unpair_ssr);
+
+    if (unpair_num > 0)
+    {
+        for (i = 0; i < unpair_num; i++)
+        {
+            sat = unpair_sat[i];
+            sys = satsys(sat, &prn);
+            if (sys == _SYS_GPS_ && m_last_eph_map.size() > 0)
+            {
+                if (m_last_eph_map.find(sat) != m_last_eph_map.end()) {
+                    memcpy(&temp_nav.eph[unpair_nav[i]], &m_last_eph_map[sat], sizeof(eph_t));
+                }
+            }
+            else if (sys == _SYS_GLO_ && m_last_geph_map.size() > 0)
+            {
+                if (m_last_geph_map.find(sat) != m_last_geph_map.end()) {
+                    memcpy(&temp_nav.geph[unpair_nav[i]], &m_last_geph_map[sat], sizeof(geph_t));
+                }
+            }
+        }
+        nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, &temp_nav, sap_ssr, EPHOPT_SSRSAP);
+    }
+    else
+    {
+        nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
+    }
 	
 	obs_vrs->time = teph;
 	obs_vrs->n = nsat;
@@ -257,8 +282,6 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 		obs_vrs->data[i].sat = vec_vrs[i].sat;
 	}
 	nsat = compute_vector_data(obs_vrs, vec_vrs);
-
-	//int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0, m_fLOG);
 
     int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, sap_vtec, obs_vrs, vec_vrs, 0.0, m_fLOG);
 	//for (i = 0; i < obs_vrs->n; ++i) {
