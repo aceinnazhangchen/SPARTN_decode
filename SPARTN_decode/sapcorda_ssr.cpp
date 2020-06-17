@@ -6,6 +6,7 @@
 #include <string>
 #include "stringex.h"
 #include <memory.h>
+#include <map>
 
 static double dmm2deg(double dmm)
 {
@@ -45,7 +46,14 @@ sapcorda_ssr::sapcorda_ssr()
 	memset(&m_spartn, 0, sizeof(m_spartn));
 	memset(&m_spartn_out, 0, sizeof(m_spartn_out));
 	memset(&m_obs_vrs, 0, sizeof(m_obs_vrs));
-	m_fLOG = NULL;// fopen("obsfromssr.log", "w");
+	m_last_eph_map.clear();
+	m_last_geph_map.clear();
+	m_last_ssr_map.clear();
+	//m_last_eph.clear();
+	//m_last_geph.clear();
+	//m_last_ssr.clear();
+	m_fLOG = NULL;
+	//m_fLOG = fopen("obsfromssr.log", "w");
 	if (m_fLOG) {
 		printf("create log success ! \n");
 	}
@@ -62,13 +70,79 @@ sapcorda_ssr::~sapcorda_ssr()
 void sapcorda_ssr::input_ssr_stream(unsigned char * buffer, uint32_t len)
 {
 	nav_t *nav = &m_rtcm.nav;
+	sap_ssr_t ssr[SSR_NUM] = { 0 };
+	memcpy(ssr, m_spartn_out.ssr, sizeof(sap_ssr_t)*SSR_NUM);
+	uint8_t ssr_offset = m_spartn_out.ssr_offset;
 	sread_ssr_sapcorda(buffer, len, &m_spartn,&m_spartn_out, nav->nsys);
+	save_last_ssr(ssr, ssr_offset, &m_spartn_out);
 }
 
 void sapcorda_ssr::input_eph_stream(unsigned char * buffer, uint32_t len)
 {
 	nav_t *nav = &m_rtcm.nav;
+	nav_t temp_nav = { 0 };
+	memcpy(&temp_nav, nav, sizeof(nav_t));
 	sread_eph_rtcm(buffer, len, &m_rtcm, nav->nsys[0], nav->nsys[1]);
+	save_last_eph(&temp_nav, nav);
+	save_last_geph(&temp_nav, nav);
+}
+
+void sapcorda_ssr::save_last_eph(nav_t* last_nav,nav_t* nav) {
+	map<int, eph_t*> eph_map;
+	map<int, eph_t*>::iterator it;
+	for (uint32_t i = 0; i < last_nav->n; i++) {
+		eph_map[last_nav->eph[i].sat] = &last_nav->eph[i];
+	}
+	for (uint32_t i = 0; i < nav->n; i++) {
+		it = eph_map.find(nav->eph[i].sat);
+		if (it != eph_map.end()) {
+			if (eph_map[nav->eph[i].sat]->iode == nav->eph[i].iode) {
+				eph_map.erase(it);//if same delete it
+			}
+		}
+	}
+	for (it = eph_map.begin(); it != eph_map.end(); it++) {
+		m_last_eph_map[it->first] = *(it->second);
+	}
+}
+
+void sapcorda_ssr::save_last_geph(nav_t* last_nav, nav_t* nav) {
+	map<int, geph_t*> geph_map;
+	map<int, geph_t*>::iterator it;
+	for (uint32_t i = 0; i < last_nav->n; i++) {
+		geph_map[last_nav->geph[i].sat] = &last_nav->geph[i];
+	}
+	for (uint32_t i = 0; i < nav->n; i++) {
+		it = geph_map.find(nav->geph[i].sat);
+		if (it != geph_map.end()) {
+			if (geph_map[nav->geph[i].sat]->iode == nav->geph[i].iode) {
+				geph_map.erase(it);//if same delete it
+			}
+		}
+	}
+	for (it = geph_map.begin(); it != geph_map.end(); it++) {
+		m_last_geph_map[it->first] = *(it->second);
+	}
+}
+
+void sapcorda_ssr::save_last_ssr(sap_ssr_t * last_ssr, uint8_t ssr_offset, spartn_t * spartn)
+{
+	map<int, sap_ssr_t*> ssr_map;
+	map<int, sap_ssr_t*>::iterator it;
+	for (uint8_t i = 0; i < ssr_offset; i++) {
+		ssr_map[last_ssr[i].sat] = &last_ssr[i];
+	}
+	for (uint8_t i = 0; i < spartn->ssr_offset; i++) {
+		it = ssr_map.find(spartn->ssr[i].sat);
+		if (it != ssr_map.end()) {
+			if (ssr_map[spartn->ssr[i].sat]->iod[0] == spartn->ssr[i].iod[0]) {
+				ssr_map.erase(it);//if same delete it
+			}
+		}
+	}
+	for (it = ssr_map.begin(); it != ssr_map.end(); it++) {
+		m_last_ssr_map[it->first] = *(it->second);
+	}
 }
 
 void input_ssr(unsigned char * buffer, uint32_t len)
@@ -170,7 +244,9 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	obs_t* obs_vrs = &sapcorda_ssr::getInstance()->m_obs_vrs;
 	memset(obs_vrs, 0, sizeof(obs_t));
 
+	
 	nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
+	// check if nav is same as last_nav
 	
 	obs_vrs->time = teph;
 	obs_vrs->n = nsat;
