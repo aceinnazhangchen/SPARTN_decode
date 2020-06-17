@@ -197,8 +197,10 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
     vtec_t    *sap_vtec =m_spartn_out.vtec;
 	nav_t *nav = &m_rtcm.nav;
     nav_t temp_nav = { 0 };
+    sap_ssr_t temp_ssr[SSR_NUM] = { 0 };
     memcpy(&temp_nav, nav, sizeof(nav_t));
-    uint32_t i, j, nsat;
+    memcpy(&temp_ssr, sap_ssr, sizeof(sap_ssr_t));
+    uint32_t i, j, nsat, unpair_num;
     int prn, sat, sys;
 	uint8_t ssr_offset = m_spartn_out.ssr_offset;
 	uint32_t ns = 0;
@@ -246,8 +248,8 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 
 	//nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
 
-    int unpair_num = nav_ssr_unpair(nav, sap_ssr, unpair_sat, unpair_nav, unpair_ssr);
-
+    // try to match ssr with historical eph if unpaired sat is detected
+    unpair_num = nav_ssr_unpair(nav, sap_ssr, unpair_sat, unpair_nav, unpair_ssr);
     if (unpair_num > 0)
     {
         for (i = 0; i < unpair_num; i++)
@@ -273,7 +275,27 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
     {
         nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, nav, sap_ssr, EPHOPT_SSRSAP);
     }
-	
+
+    // try to match nav with historical ssr if unpaired sat is detected
+    memset(unpair_sat, 0, MAXOBS * sizeof(int));
+    memset(unpair_nav, 0, MAXOBS * sizeof(int));
+    memset(unpair_ssr, 0, MAXOBS * sizeof(int));
+    unpair_num = nav_ssr_unpair(nav, sap_ssr, unpair_sat, unpair_nav, unpair_ssr);
+    if (unpair_num > 0)
+    {
+        for (i = 0; i < unpair_num; i++)
+        {
+            sat = unpair_sat[i];
+            if (m_last_ssr_map.size() > 0)
+            {
+                if (m_last_ssr_map.find(sat) != m_last_ssr_map.end()) {
+                    memcpy(&temp_ssr[unpair_ssr[i]], &m_last_ssr_map[sat], sizeof(ssr_t));
+                }
+            }
+        }
+        nsat = satposs_sap_rcv(teph, rovpos, vec_vrs, &temp_nav, temp_ssr, EPHOPT_SSRSAP);
+    }
+
 	obs_vrs->time = teph;
 	obs_vrs->n = nsat;
 	memcpy(obs_vrs->pos, rovpos, 3 * sizeof(double));
