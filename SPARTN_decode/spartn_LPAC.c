@@ -97,14 +97,14 @@ void decode_LPAC_header_block(raw_spartn_t* spartn, LPAC_header_t* header,int ta
 }
 
 uint16_t get_Ionosphere_shell_height(int index) {
-	uint16_t value = 0;
-	switch (index) {
-	case 0:value = 350; break;
-	case 1:value = 400; break;
-	case 2:value = 450; break;
-	case 3:value = 500; break;
-	}
-	return value;
+    uint16_t value = 0;
+    switch (index) {
+    case 0:value = 350; break;
+    case 1:value = 400; break;
+    case 2:value = 450; break;
+    case 3:value = 500; break;
+    }
+    return value;
 }
 
 // SM 3-0 LPAC messages 
@@ -124,7 +124,7 @@ extern int decode_LPAC_message(raw_spartn_t* spartn, spartn_t* spartn_out)
 		decode_LPAC_area_block(spartn, &area, tab+1);
 		ssr_append_lpac_area(spartn_out, &area);
 	}
-	spartn_out->is_height = get_Ionosphere_shell_height(header.SF070_Ionosphere_shell_height);
+    spartn_out->is_height = get_Ionosphere_shell_height(header.SF070_Ionosphere_shell_height);
 	//transform_spartn_ssr(spartn_out, NULL, NULL, NULL, lpac);
 	slog(LOG_DEBUG, tab, "offset = %d bits", spartn->offset);
 	//slog(LOG_DEBUG, tab, "size of LPAC_t = %d ", sizeof(LPAC_t));

@@ -191,6 +191,7 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	teph = timeadd(teph, 18.0);
 	sap_ssr_t *sap_ssr = m_spartn_out.ssr;
 	gad_ssr_t *sap_gad = m_spartn_out.ssr_gad;
+    vtec_t    *sap_vtec =m_spartn_out.vtec;
 	nav_t *nav = &m_rtcm.nav;
 	uint32_t i, j, nsat;
 	uint8_t ssr_offset = m_spartn_out.ssr_offset;
@@ -257,7 +258,9 @@ unsigned char* sapcorda_ssr::merge_ssr_to_obs(double* rovpos, unsigned char*out_
 	}
 	nsat = compute_vector_data(obs_vrs, vec_vrs);
 
-	int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0, m_fLOG);
+	//int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, obs_vrs, vec_vrs, 0.0, m_fLOG);
+
+    int vrs_ret = gen_obs_from_ssr(teph, rovpos, sap_ssr, sap_gad, sap_vtec, obs_vrs, vec_vrs, 0.0, m_fLOG);
 	//for (i = 0; i < obs_vrs->n; ++i) {
 	//	if (m_fLOG) fprintf(m_fLOG,"obs: %12I64i,%3i,%14.4f,%14.4f,%14.4f,%14.4f\n",
 	//		obs_vrs->time.time, obs_vrs->data[i].sat, obs_vrs->data[i].P[0], obs_vrs->data[i].P[1], obs_vrs->data[i].L[0], obs_vrs->data[i].L[1]);
